@@ -1,0 +1,52 @@
+.logout-link { width: 100%; border: 0; background: transparent; text-align: left; font-size: 12px; min-height: 34px; }
+.notification-row { border-bottom: 1px solid var(--border); padding: 8px 0; }
+.notification-row.read { opacity: .72; }
+.notification-row .mark-read { padding: 4px 0 8px; width: auto; font-size: 11px; }
+.notification-list .notification-row > button { border: 0; background: transparent; }
+.notification-row > button:first-child { display: flex; width: 100%; justify-content: space-between; align-items: center; gap: 16px; text-align: left; padding: 10px 0; }
+.notification-list .notification-row small { display: block; margin-top: 4px; }
+.detail-list { padding: 0 24px; }
+.interview-row { padding: 20px 0; border-bottom: 1px solid var(--border); }
+.interview-row:last-child { border-bottom: 0; }
+.detail-row-heading { display: flex; align-items: center; gap: 12px; }
+.detail-row-icon { color: var(--primary); background: var(--green-soft); display: grid; place-items: center; width: 36px; height: 36px; border-radius: 7px; flex-shrink: 0; }
+.detail-row-heading > div:not(.row-actions) { flex: 1; min-width: 0; }
+.detail-row-heading h3 { font-size: 13px; font-weight: 600; }
+.detail-row-heading p { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.row-actions { display: flex; }
+.interview-meta { display: flex; gap: 8px 16px; flex-wrap: wrap; font-size: 11px; color: var(--muted); margin: 14px 0 0 48px; }
+.interview-meta > span:first-child { color: var(--primary); }
+.detail-notes { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted); font-size: 12px; line-height: 1.8; margin-top: 12px; }
+.interview-row > .detail-notes { margin-left: 48px; }
+.contact-panel, .followup-panel { padding: 22px; }
+.contact-panel .aside-title > .icon-button { margin-left: auto; }
+.contact-panel > .muted, .followup-panel p { font-size: 12px; line-height: 1.7; }
+.contact-row { border-top: 1px solid var(--border); padding: 14px 0; }
+.contact-row:last-child { padding-bottom: 0; }
+.contact-name { display: flex; align-items: center; gap: 1px; }
+.contact-name strong { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 13px; }
+.contact-name .icon-button { width: 28px; min-height: 30px; }
+.contact-row > p { color: var(--muted); font-size: 11px; line-height: 1.7; }
+.contact-row > a { font-size: 11px; margin-top: 8px; overflow-wrap: anywhere; }
+.contact-form-grid { margin-top: 16px; }
+.followup-panel > strong { font-size: 14px; font-weight: 600; display: block; margin-bottom: 8px; }
+.followup-panel p { color: var(--muted); }
+.followup-actions, .inline-actions { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
+.followup-actions .text-link { font-size: 11px; }
+.password-field input { width: 100%; }
+.activity-feed { padding: 0 24px; }
+.activity-feed > a { display: flex; gap: 12px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.activity-feed > a:last-child { border-bottom: 0; }
+.activity-feed strong { font-size: 12px; font-weight: 600; }
+.activity-feed p, .activity-feed small { font-size: 11px; color: var(--muted); line-height: 1.8; }
+.activity-feed p { margin-top: 4px; }
+.followup-item { display: block; padding: 18px 24px; border-bottom: 1px solid var(--border); }
+.followup-item strong { font-size: 13px; font-weight: 600; }
+.followup-item p { font-size: 11px; color: var(--muted); margin: 5px 0; }
+.followup-item span { font-size: 11px; color: var(--primary); }
+.compact-section-tabs { display: flex; gap: 18px; padding: 0 24px; border-bottom: 1px solid var(--border); }
+.compact-section-tabs button { font-size: 11px; padding: 0 0 12px; color: var(--muted); border: 0; background: none; border-bottom: 2px solid transparent; }
+.compact-section-tabs button[aria-pressed=true] { color: var(--primary); border-color: var(--primary); font-weight: 600; }
+.interviews-panel .compact-section-tabs { margin-top: 18px; }
+@media(max-width: 480px) { .detail-list { padding: 0 16px; } .interview-meta, .interview-row > .detail-notes { margin-left: 0; } .detail-row-heading { gap: 8px; } .detail-row-icon { display: none; } .contact-panel, .followup-panel { padding: 18px; } }
+@media(min-width: 481px) and (max-width: 1100px) { .analytics-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
