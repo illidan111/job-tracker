@@ -14,6 +14,7 @@ import { careerRoutes } from './careerRoutes'
 import { careerBackupSchema } from '../src/domain/career'
 import { exportCareer } from './careerBackup'
 import { collections } from './collections'
+import { journeyRoutes } from './journey'
 
 const versionSchema = z.object({ version: z.number().int().positive() })
 export function createApp(db: DatabaseSync, options: AuthOptions & { origin: string; staticDir?: string }) {
@@ -52,6 +53,7 @@ export function createApp(db: DatabaseSync, options: AuthOptions & { origin: str
   app.post('/api/auth/logout', (request, response) => { auth.logout(request, response); response.status(204).end() })
   app.use('/api', (request, response, next) => { response.locals.userId = auth.requireUser(request).id; next() })
   app.use('/api', careerRoutes(db))
+  app.use('/api', journeyRoutes(db))
   app.use('/api', collections(db))
   app.get('/api/workspace', (_request, response) => response.json(repo.workspace(response.locals.userId)))
   app.get('/api/notifications', (request, response) => {

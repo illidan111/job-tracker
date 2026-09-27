@@ -39,8 +39,12 @@ try {
   const demo = await page.request.post(`${base}/api/workspace/demo`, { headers: { Origin: base }, data: {} })
   assert.equal(demo.status(), 200)
   let before = await demo.json()
-  const task = await page.request.post(base + '/api/tasks', { headers: { Origin: base }, data: { title: 'Restart preparation', applicationId: before.applications[0].id, dueDate: '2026-09-27' } })
+  const task = await page.request.post(base + '/api/tasks', { headers: { Origin: base }, data: { title: 'Restart preparation', applicationId: before.applications[0].id, dueDate: '2026-09-27', status: 'COMPLETED' } })
   assert.equal(task.status(), 201)
+  const preference = await page.request.patch(base + '/api/journey/preferences', { headers: { Origin: base }, data: { companion: 'hare' } })
+  assert.equal(preference.status(), 200)
+  const journeyBefore = await preference.json()
+  assert.equal(journeyBefore.xp, 15)
   const materials = await page.request.put(base + '/api/applications/' + before.applications[0].id + '/materials', { headers: { Origin: base }, data: { version: 0, resumeVersion: 'Restart v4' } })
   assert.equal(materials.status(), 200)
   const careerBefore = (await (await page.request.get(base + '/api/workspace/export')).json()).career
@@ -56,10 +60,12 @@ try {
   assert.equal(persisted.headers()['cache-control'], 'no-store')
   assert.deepEqual((await persisted.json()).applications, before.applications)
   assert.deepEqual((await (await page.request.get(base + '/api/workspace/export')).json()).career, careerBefore)
-  for (const route of ['/today', '/calendar']) { await page.goto(base + route); await page.locator('h1').waitFor() }
+  assert.deepEqual(await (await page.request.get(base + '/api/journey')).json(), journeyBefore)
+  for (const route of ['/today', '/calendar', '/journey']) { await page.goto(base + route); await page.locator('h1').waitFor() }
+  await page.getByRole('img', { name: 'Hare companion, evolution 1' }).waitFor()
   const html = await page.request.get(`${base}/applications`)
   assert.match(html.headers()['content-security-policy'], /frame-ancestors 'none'/)
   assert.match(await html.text(), /\/assets\/index-/)
   assert.deepEqual(errors, [])
-  console.log('PASS: production bundle, CSP, deep links, authenticated session and 24 applications and career records survive a server restart.')
+  console.log('PASS: production bundle, CSP, deep links, session, 24 applications, career records, XP and companion survive a server restart.')
 } finally { await browser?.close(); await stopServer() }

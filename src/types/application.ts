@@ -69,6 +69,7 @@ export interface TimelineEvent {
 
 export interface Application {
   id: string
+  nextTask?: { id: string; title: string; dueDate: string; priority: string }
   companyId?: string
   company: string
   position: string
@@ -99,7 +100,7 @@ export interface Application {
   interviews: Interview[]
 }
 
-export type ApplicationInput = Omit<Application, 'id' | 'createdAt' | 'updatedAt' | 'timeline' | 'version' | 'contacts' | 'interviews' | 'followUpCompletedAt' | 'archivedAt'>
+export type ApplicationInput = Omit<Application, 'nextTask' | 'id' | 'createdAt' | 'updatedAt' | 'timeline' | 'version' | 'contacts' | 'interviews' | 'followUpCompletedAt' | 'archivedAt'>
 
 export interface SavedJob {
   id: string

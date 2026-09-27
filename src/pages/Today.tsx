@@ -13,11 +13,11 @@ import { Pagination } from '../components/ui/Pagination'
 import { RemoteState } from '../components/ui/RemoteState'
 import { useUI } from '../state/useUI'
 import { RecentActivity } from '../components/RecentActivity'
-import type { Overview } from '../domain/overview'
+import { useOverview } from '../hooks/useOverview'
 
 export default function Today() {
   const recent = useUI(state => state.recent)
-  const overview = useResource<Overview>('/overview')
+  const overview = useOverview()
   const [params, setParams] = useSearchParams(), [creating, setCreating] = useState(false)
   const upcoming = params.get('view') === 'upcoming', today = dateKey()
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone

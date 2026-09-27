@@ -33,7 +33,7 @@ test('saved job becomes a complete application and remains recoverable after arc
   await page.getByLabel('Reason', { exact: true }).fill('Check application status')
   await page.getByLabel('Follow-up note').fill('Write to Morgan')
   await page.getByRole('button', { name: 'Save follow-up' }).click()
-  await expect(page.locator('.next-step-panel')).toContainText('Check application status')
+  await expect(page.locator('.next-action-banner')).toContainText('Check application status')
   await page.getByRole('button', { name: 'Schedule', exact: true }).click()
   const interview = page.getByRole('dialog', { name: 'Schedule interview' })
   const date = new Date(Date.now() + 2 * 86400000)

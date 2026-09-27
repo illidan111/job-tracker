@@ -1,5 +1,13 @@
 # Architecture and data ownership
 
+## Journey experience
+
+Migration `004_journey.sql` adds preferences, reward rules, an owner-scoped event ledger and achievement unlocks. Domain triggers and one reward-candidate entry point keep awards in the original application/task/interview/contact/follow-up transaction. The client cannot grant XP. Existing meaningful records receive a marked one-time backfill; import/demo operations suppress credit while retaining anti-duplication evidence. Reads do not mutate progress. See [GAMIFICATION.md](GAMIFICATION.md) for rules and backup boundaries.
+
+Migration `005_journey_trigger_integrity.sql` upgrades early local Journey databases to explicit conflict handling in the reward/achievement triggers without replaying events. Fresh installations apply both migrations; domain transactions and existing progress are preserved.
+
+`server/journey.ts` returns one aggregate with levels, companion, bounded history, achievements, contextual steps and weekly/activity rhythm. AppLayout owns one progress resource and one Overview resource, shared through contexts. Original inline SVG companions and CSS tokens add no asset requests or animation dependencies. Screens remain lazy routes. Home is the primary route; Today remains the detailed agenda. Applications render rich lists with next tasks from a grouped repository query. Native dialogs, conflict recovery, filtering, bulk actions and imports remain in place. The [design diagnosis](JOURNEY_DESIGN.md) records the preimplementation browser review.
+
 Waypoint keeps its existing React interface and adds a same-origin TypeScript API. React Router loads screens on demand; Zustand holds the authenticated workspace cache and transient saving/error state. React Hook Form and shared Zod schemas validate forms. Express validates every write again before the repository touches SQLite.
 
 ```mermaid
@@ -16,7 +24,7 @@ SQLite was selected for a reproducible local setup with no service account, Dock
 
 ## Relational model
 
-`server/migrations/001_initial.sql`, `002_job_search_workflow.sql` and `003_career_crm.sql` are the schema sources. Migrations are tracked in the `migrations` table and applied atomically on startup; `npm run db:migrate` also runs them explicitly. Migration 002 adds new columns with safe defaults, retaining existing application and interview rows. Migration 003 backfills reusable companies per owner and preserves all retained timeline rows while expanding supported event types.
+`server/migrations/001_initial.sql`, `002_job_search_workflow.sql`, `003_career_crm.sql`, `004_journey.sql` and `005_journey_trigger_integrity.sql` are the schema sources. Migrations are tracked in the `migrations` table and applied atomically on startup; `npm run db:migrate` also runs them explicitly. Migration 002 adds new columns with safe defaults, retaining existing application and interview rows. Migration 003 backfills reusable companies per owner and preserves all retained timeline rows while expanding supported event types.
 
 | Table | Purpose and relationships |
 | --- | --- |

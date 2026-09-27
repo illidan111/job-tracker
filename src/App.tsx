@@ -11,6 +11,7 @@ const Kanban = lazy(() => import('./pages/Kanban'))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const Settings = lazy(() => import('./pages/Settings'))
 const ApplicationDetails = lazy(() => import('./pages/ApplicationDetails'))
+const Journey = lazy(() => import('./pages/Journey'))
 const Today = lazy(() => import('./pages/Today'))
 const Calendar = lazy(() => import('./pages/Calendar'))
 const Tasks = lazy(() => import('./pages/Tasks'))
@@ -22,6 +23,7 @@ export function App() {
   return <BrowserRouter><Suspense fallback={<div className="app-loading" role="status"><span className="loading-spinner" />Getting your workspace ready…</div>}>
     <Routes><Route element={<AuthGate />}><Route path="login" element={<Auth />} /><Route path="signup" element={<Auth signup />} /><Route element={<AppLayout />}>
       <Route index element={<Dashboard />} />
+      <Route path="journey" element={<Journey />} />
       <Route path="today" element={<Today />} />
       <Route path="calendar" element={<Calendar />} />
       <Route path="tasks" element={<Tasks />} />

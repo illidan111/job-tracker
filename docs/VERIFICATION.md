@@ -1,5 +1,21 @@
 # Verification record
 
+## Journey experience cycle - 2026-09-27
+
+Started from clean `a1a41c2` on main. Before implementation, inspected the running application in Edge on an isolated database and wrote [Journey design diagnosis](JOURNEY_DESIGN.md). After implementation, inspected the rendered Home, Applications, Kanban, detail, Journey, Analytics and supporting screens, forms, empty states and mobile navigation, then iterated on hierarchy, spacing and controls. The computer-use connector could not initialize; the repository's real Playwright/Edge browser was used instead.
+
+- ESLint, TypeScript and all **52 unit/API tests** pass. Coverage includes real rewards, two concurrent submissions, repeated edits and preparation UPSERTs, 100 create/delete attempts, daily caps, transaction rollback, import/demo suppression, owner isolation, rejected client XP/achievement fields, quest completion, levels/evolution boundaries, UTC streaks and migration/backfill persistence. An upgrade regression preserves existing XP/achievements while replacing early local triggers with explicit conflict handling.
+- The complete Edge run passed **51 of 53** scenarios. Two responsive CRM checks failed because their old loading locator assumed a single indicator; Calendar legitimately has two concurrent loading regions. Changed the assertion to wait for zero loading indicators. The targeted rerun passed **both** remaining scenarios. All 53 scenarios therefore passed across the full run and targeted rerun, with none skipped.
+- The new end-to-end Journey scenario registers a real isolated account, submits an application (30 XP), checks Home/Journey and the first achievement, selects a cat, creates/completes a contextual task (45 XP), schedules/completes an interview (130 XP, level 2), then refreshes and signs out/in. XP, achievement and companion persist. It also exercises mobile, reduced motion and workspace progress opt-out.
+- Main routes and forms fit **320, 375, 390, 430, 768, 1024, 1440 and 1920 px**, light and dark. Axe WCAG A/AA checks pass at 375/1440 in both themes. Existing keyboard focus, dialogs, mobile navigation, non-drag status changes, bulk actions, filtering, imports, error recovery and authentication tests continue to pass.
+- Production build and local compiled smoke pass: CSP, deep links, authenticated sessions, 24 applications and CRM records survive an API restart; the smoke additionally verifies persisted task XP and hare selection. No deployment occurred. No dependencies were added.
+
+Production output: entry JavaScript **382.82 kB / 119.75 kB gzip**, CSS **102.96 kB / 20.02 kB gzip**; Journey **8.17 kB / 2.94 kB gzip** and shared companion/progress **4.82 kB / 2.11 kB gzip**. Analytics' chart code is separately loaded (**361.17 kB / 104.63 kB gzip**) and is no longer on Home. Layout owns one shared overview request and one Journey aggregate; inline companions need no image fetches or animation library. Rewards use indexed, owner-scoped queries and remain inside domain transactions; no load benchmark is claimed.
+
+The existing local development watcher applied an early version of migration 004 during implementation. Migration 005 was tested and explicitly applied to the configured local database; it only replaces two trigger definitions and retains all existing progress. Test accounts and visual audit data were isolated from that database.
+
+Known verification limits: no manual screen-reader session or Firefox/WebKit run. Automated accessibility checks do not establish complete accessibility. Reward eligibility records product actions, not externally verified employer interactions. Calendar/profile timezone behavior is preserved; Journey weeks/activity use documented UTC boundaries. JSON workspace imports preserve the current account's reward ledger but do not restore another ledger; a full database backup is needed for complete progress recovery. See [GAMIFICATION.md](GAMIFICATION.md) for these deliberate boundaries.
+
 ## Career CRM cycle - 2026-09-27
 
 The repository was inspected at baseline commit `7558212`; findings and scope are in [Career CRM audit](CAREER_CRM_AUDIT.md). Work kept the existing visual system and authentication architecture, introduced no package dependencies, and used isolated test databases throughout.

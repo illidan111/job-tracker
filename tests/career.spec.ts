@@ -77,7 +77,8 @@ test('career journey connects preparation, tasks, notes, company history, agenda
   await expect(page.locator('.timeline')).toContainText('Career portfolio walkthrough')
   await expect(page.locator('.timeline')).toContainText('Interview preparation and reflection updated')
   await page.goto('/')
-  await expect(page.locator('.overview-support-metrics')).toContainText('100% conversion')
+  await expect(page.locator('.route-stations')).toContainText('In conversation')
+  await expect(page.locator('.search-pulse')).toContainText('1active opportunity')
   await page.goto('/analytics')
   await expect(page.getByText('1 of 1 reached an interview')).toBeVisible()
   await page.keyboard.press('Control+k')
@@ -133,7 +134,7 @@ for (const [width, theme] of [[320, 'light'], [375, 'light'], [768, 'light'], [1
   for (const route of ['/today', '/calendar', '/tasks', '/companies', '/contacts', `/companies/${app.companyId}`, `/applications/${app.id}?tab=tasks`, `/applications/${app.id}?tab=materials`, `/applications/${app.id}?tab=notes`]) {
     await page.goto(route)
     await expect(page.locator('h1')).toBeVisible()
-    await page.getByText('Loading…', { exact: true }).waitFor({ state: 'detached' })
+    await expect(page.getByText('Loading…', { exact: true })).toHaveCount(0)
     await fit()
     if (route === '/calendar' || route === '/today') await page.screenshot({ path: testInfo.outputPath(route.slice(1) + '.png'), fullPage: true })
   }

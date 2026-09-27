@@ -78,7 +78,7 @@ test('invalid pagination links recover to a whole page', async ({ page }) => {
   for (const value of ['1.5', 'Infinity', '-3', 'invalid']) {
     await page.goto(`/applications?page=${value}`)
     await expect(page.getByText('Page 1 of 3')).toBeVisible()
-    await expect(page.locator('tbody tr')).toHaveCount(10)
+    await expect(page.locator('.opportunity-row')).toHaveCount(10)
   }
 })
 
@@ -99,9 +99,9 @@ test('invalid credentials and duplicate signup show recoverable errors without e
   await expect(page.getByRole('alert')).toContainText('already exists')
   await page.getByLabel('Email address').fill(`separate-${crypto.randomUUID()}@example.test`)
   await page.getByRole('button', { name: 'Create your account' }).click()
-  await expect(page).toHaveURL(/\/today$/)
-  await expect(page.getByRole('heading', { name: 'Today', exact: true })).toBeVisible()
-  await expect(page.locator('.agenda')).toContainText('Nothing scheduled here')
+  await expect(page).toHaveURL(/\/$/)
+  await expect(page.getByRole('heading', { name: /Good .*Someone/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Find your starting point' })).toBeVisible()
   expect((await workspace(page)).applications).toEqual([])
   await expect(page.getByText('Linear', { exact: true })).not.toBeVisible()
 })

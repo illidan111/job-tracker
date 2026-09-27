@@ -19,7 +19,7 @@ test('interview CRUD, upcoming conversations, follow-up completion and read remi
   await expect(dialog).not.toBeVisible()
   await expect(page.getByRole('heading', { name: 'Technical interview', exact: true })).toBeVisible()
   await page.goto('/')
-  await expect(page.locator('.upcoming-list')).toContainText('Aurora Labs')
+  await expect(page.locator('.home-priorities .quest-list')).toContainText('Aurora Labs')
   await page.getByRole('button', { name: /Notifications/ }).click()
   dialog = page.getByRole('dialog', { name: 'Your reminders' })
   await expect(dialog).toContainText('Interview with Aurora Labs')

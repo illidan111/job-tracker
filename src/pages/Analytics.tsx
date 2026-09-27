@@ -2,13 +2,14 @@ import { useState } from 'react'
 import { BarChart3 } from 'lucide-react'
 import { useUI } from '../state/useUI'
 import { Button } from '../components/ui/Button'
-import { useResource } from '../hooks/useResource'
+
+import { useOverview } from '../hooks/useOverview'
 import type { Overview } from '../domain/overview'
 import { RemoteState } from '../components/ui/RemoteState'
 import { WidgetBoundary } from '../components/WidgetBoundary'
 import { PageHeading } from '../components/PageHeading'
 import { ActivityChart } from '../charts/ActivityChart'
-import { StatusChart } from '../charts/StatusChart'
+import { STATUSES, STATUS_META } from '../types/application'
 import { EmptyState } from '../components/ui/EmptyState'
 
 function Breakdown({ entries }: { entries: Overview['breakdown']['location'] }) {
@@ -16,7 +17,7 @@ function Breakdown({ entries }: { entries: Overview['breakdown']['location'] }) 
 }
 
 export default function Analytics() {
-  const query = useResource<Overview>('/overview')
+  const query = useOverview()
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly')
   const openEditor = useUI(state => state.openEditor)
   if (!query.data) return <><PageHeading title="Analytics" /><RemoteState {...query} /></>
@@ -35,7 +36,7 @@ export default function Analytics() {
     <section className="panel search-funnel"><div className="panel-heading"><div><h2>Job search funnel</h2></div></div><div className="funnel-steps"><div><span>Saved now</span><strong>{savedCount}</strong></div><div><span>Applied</span><strong>{metrics.total}</strong></div><div><span>Reached interview</span><strong>{metrics.interviews}</strong></div><div><span>Reached offer</span><strong>{metrics.offers}</strong></div></div><p className="muted">Saved is the current wishlist, separate from the historical application conversion rates.</p></section>
     <section className="panel response-insight"><h2>First recorded response</h2><strong>{averageResponse}</strong><p className="muted">From application date to the first recorded status change, across {responseCount} applications. Entries without a recorded response are excluded.</p></section>
     {!metrics.total && <EmptyState title="No activity yet" description="Add a few applications to see your job-search trends." action={<Button onClick={() => openEditor()}>Add application</Button>} />}
-    <div className="dashboard-chart-grid"><section className="panel activity-panel"><div className="panel-heading"><div><h2>Application activity</h2></div><div className="segmented-control" aria-label="Activity period"><button aria-pressed={period === 'weekly'} onClick={() => setPeriod('weekly')}>Weekly</button><button aria-pressed={period === 'monthly'} onClick={() => setPeriod('monthly')}>Monthly</button></div></div><WidgetBoundary><ActivityChart series={query.data[period]} period={period} /></WidgetBoundary><div className="chart-footnote"><span className="legend-dot" />Applications sent<span>{period === 'weekly' ? 'Last 8 weeks' : 'Last 6 months'}</span></div></section><section className="panel pipeline-panel"><div className="panel-heading"><div><h2>Current pipeline</h2></div></div><WidgetBoundary><StatusChart counts={query.data.statuses} /></WidgetBoundary></section></div>
+    <div className="dashboard-chart-grid"><section className="panel activity-panel"><div className="panel-heading"><div><h2>Application activity</h2></div><div className="segmented-control" aria-label="Activity period"><button aria-pressed={period === 'weekly'} onClick={() => setPeriod('weekly')}>Weekly</button><button aria-pressed={period === 'monthly'} onClick={() => setPeriod('monthly')}>Monthly</button></div></div><WidgetBoundary><ActivityChart series={query.data[period]} period={period} /></WidgetBoundary><div className="chart-footnote"><span className="legend-dot" />Applications sent<span>{period === 'weekly' ? 'Last 8 weeks' : 'Last 6 months'}</span></div></section><section className="panel pipeline-panel"><div className="panel-heading"><div><h2>Current pipeline</h2></div></div><dl className="pipeline-counts">{STATUSES.map(status => <div key={status}><dt>{STATUS_META[status].label}</dt><dd>{query.data!.statuses[status]}</dd></div>)}</dl></section></div>
     <div className="analytics-breakdown-grid"><section className="panel"><div className="panel-heading"><div><h2>By location</h2></div></div><Breakdown entries={query.data.breakdown.location} /></section><section className="panel"><div className="panel-heading"><div><h2>By employment type</h2></div></div><Breakdown entries={query.data.breakdown.employmentType} /></section></div>
     <section className="panel source-breakdown"><div className="panel-heading"><div><h2>By source</h2></div></div><Breakdown entries={query.data.breakdown.source} /></section>
   </>

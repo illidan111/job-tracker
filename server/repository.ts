@@ -42,18 +42,22 @@ export class Repository {
       for (const row of rows) { const key = String(row.applicationId); const list = result.get(key) ?? []; list.push(row); result.set(key, list) }
       return result
     }
+    const nextTasks = this.db.prepare(`SELECT * FROM (SELECT id,applicationId,title,dueDate,priority,row_number() OVER (PARTITION BY applicationId ORDER BY dueDate='',dueDate,CASE priority WHEN 'HIGH' THEN 0 ELSE 1 END,createdAt) n FROM tasks WHERE userId=? AND status='OPEN'${suffix}) WHERE n=1`).all(...args)
+    const groupedTasks = group(nextTasks)
     const groupedContacts = group(contacts), groupedTags = group(tags), groupedInterviews = group(interviews), groupedEvents = group(events)
     return this.db.prepare(`SELECT a.*,ac.companyId FROM applications a LEFT JOIN application_companies ac ON ac.applicationId=a.id AND ac.userId=a.userId WHERE a.userId=?${id ? ` AND a.id${match}` : ''} ORDER BY a.createdAt DESC`).all(...args).map(row => {
       const appId = String(row.id)
       const appContacts = (groupedContacts.get(appId) ?? []).map(item => contactSchema.parse(item))
       const appInterviews = (groupedInterviews.get(appId) ?? []).map(item => interviewSchema.parse(item))
-      return applicationSchema.parse({ ...row, salary: row.salary ?? undefined,
+      const parsed = applicationSchema.parse({ ...row, salary: row.salary ?? undefined,
         recruiter: appContacts[0]?.name ?? '', recruiterEmail: appContacts[0]?.email ?? '',
         interviewDate: appInterviews.find(item => item.outcome === 'Scheduled')?.scheduledAt ?? '',
         contacts: appContacts, interviews: appInterviews,
         tags: (groupedTags.get(appId) ?? []).map(item => item.name),
         timeline: (groupedEvents.get(appId) ?? []).map(item => timelineSchema.parse({ ...item, status: item.status ?? undefined })),
       })
+      const task = groupedTasks.get(appId)?.[0]
+      return { ...parsed, nextTask: task ? { id: String(task.id), title: String(task.title), dueDate: String(task.dueDate), priority: String(task.priority) } : undefined }
     })
   }
   application(userId: string, id: string) {
@@ -326,6 +330,7 @@ export class Repository {
     const contactMap = new Map<string, { id: string; source: string }>()
     const applicationMap = new Map<string, string>(), interviewMap = new Map<string, string>()
     transaction(this.db, () => {
+      this.db.prepare('UPDATE user_progress SET suppress=1 WHERE userId=?').run(userId)
       if (savedJobs) {
         this.db.prepare('DELETE FROM saved_jobs WHERE userId=?').run(userId)
         for (const job of savedJobs) this.insert('saved_jobs', { id: randomUUID(), userId, ...Object.fromEntries(savedKeys.map(key => [key, job[key] ?? null])), version: 1, createdAt: job.createdAt, updatedAt: job.updatedAt })
@@ -356,6 +361,7 @@ export class Repository {
         if (!source.timeline.length) this.event(userId, id, 'created', 'Application imported', source.status, source.createdAt)
       }
       if (career) restoreCareer(this.db, userId, career, applicationMap, interviewMap, contactMap)
+      this.db.prepare('UPDATE user_progress SET suppress=0 WHERE userId=?').run(userId)
     })
   }
 }

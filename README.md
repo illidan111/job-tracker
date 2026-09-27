@@ -1,8 +1,8 @@
 # Waypoint
 
-A personal career CRM for a job search: save opportunities, manage applications, prepare for interviews, and see what needs attention today. The existing green/off-white interface is preserved, with real accounts and a persistent relational database.
+A personal career journey: save opportunities, manage applications, prepare for interviews, and see your next useful step. Waypoint combines a warm paper-and-clay visual identity with real accounts and a persistent relational database.
 
-![Waypoint overview with the application pipeline, progress and upcoming interviews](docs/images/overview.png)
+Home puts priorities before statistics. Journey makes meaningful progress visible with optional companions, levels and achievements. The core career tools work independently of this layer.
 
 ## Run locally
 
@@ -51,14 +51,18 @@ Nothing is deployed by these commands.
 
 ## What it does
 
+- **Home and navigation:** personal briefing, next moves, compact pipeline route and recent activity; grouped desktop navigation and mobile Home/Work/Journey/More controls.
+- **Journey:** server-owned XP, growing levels, three companions evolving at levels 5/10/20, contextual steps, weekly intentions, gentle activity rhythm and 12 achievements. Hide workspace progress through the Journey preference. See [rules and limitations](docs/GAMIFICATION.md).
+- **Opportunities:** responsive rich lists showing next action and last activity, preserving search/filter/sort/bulk operations. Details surface next action before facts; Kanban retains drag and keyboard status controls.
+
 - **Accounts:** sign up, sign in/out, persistent server sessions, profile, weekly goal, light/dark/system themes. Each account has its own applications and related records.
 - **Today and calendar:** one agenda for task deadlines, interviews, follow-ups and application deadlines; overdue items, a 90-day upcoming view, month/day navigation and browser-timezone interview dates. Recent activity and recently opened records provide context.
 - **Companies:** reusable research and links to related applications, contacts and interview history. Company names are shared within an account.
 - **Tasks:** personal or application tasks, three priorities, completion/reopening and contextual checklists.
 - **Application workspace:** separate conversation notes, saved job description, manually edited skills, resume version/URL, cover letter and portfolio/assignment links.
 - **Interview preparation:** topics checklist, questions to ask, expected questions and personal post-interview reflections.
-- **Overview:** active pipeline, actual conversion metrics, activity over time, recent applications/activity, upcoming individual interviews and follow-ups.
-- **Applications:** validated CRUD, notes, tags, work arrangement, salary, recruiter and interview shortcuts, searchable details, URL-based combined filters, sorting and table pagination.
+- **Analytics:** conversion rates, response timing, application activity, pipeline counts and source/location breakdowns. Charts stay off Home.
+- **Applications:** validated CRUD, notes, tags, work arrangement, salary, recruiter and interview shortcuts, searchable details, URL-based combined filters, sorting and pagination.
 - **Saved jobs:** keep promising roles with a link, source, salary, deadline and notes; convert to an application with one action and no re-entry.
 - **Archive and bulk work:** select applications for status or tag changes, archive/restore, or confirmed deletion. Archived records remain searchable in the Archive view and out of the active board and reminders.
 - **Timeline:** status changes, contact updates, interview scheduling/outcomes/removal, and follow-up scheduling/completion recorded alongside each opportunity.
@@ -171,7 +175,7 @@ npm.cmd run test:e2e
 npm.cmd run test:production
 ```
 
-API tests use a temporary database and real HTTP requests. Playwright starts isolated test services at **5187 / 3017** and creates a separate database under ignored `data/`. Each test gets its own account; your normal database is untouched. Test output and traces go to `test-results/` and `playwright-report/`. The production smoke test uses a temporary database and port **5190**, verifies the built UI and deep links, then restarts the server to check persisted applications and sessions.
+API tests use a temporary database and real HTTP requests. Playwright starts isolated test services at **5187 / 3017** and creates a separate database under ignored `data/`. Each test gets its own account; your normal database is untouched. Test output and traces go to `test-results/` and `playwright-report/`. The production smoke test uses a temporary database and port **5190**, verifies the built UI and deep links, then restarts the server to check persisted applications, career records, sessions, XP and companion choice.
 
 See [verification notes](docs/VERIFICATION.md) for coverage and the final checked environment.
 

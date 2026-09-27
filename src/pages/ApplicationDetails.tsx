@@ -9,7 +9,7 @@ import { useWorkspace } from '../state/useWorkspace'
 import { useUI } from '../state/useUI'
 import { STATUSES, STATUS_META } from '../types/application'
 import type { Status } from '../types/application'
-import { dateKey, formatDate, formatDateTime } from '../utils/dates'
+import { formatDate, formatDateTime } from '../utils/dates'
 import { formatSalary } from '../utils/applications'
 import { CompanyMark } from '../components/CompanyMark'
 import { StatusBadge } from '../components/StatusBadge'
@@ -17,6 +17,7 @@ import { Button } from '../components/ui/Button'
 import { ConfirmDialog } from '../components/ui/Dialog'
 import { EmptyState } from '../components/ui/EmptyState'
 import { ApplicationMaterials, ApplicationNotes } from '../components/ApplicationCareer'
+import { nextAction } from '../utils/nextAction'
 import { Tasks } from '../components/Tasks'
 
 export default function ApplicationDetails() {
@@ -36,15 +37,15 @@ export default function ApplicationDetails() {
   const [confirmDelete, setConfirmDelete] = useState(false)
   const error = useWorkspace(state => state.storageError)
   const pending = useWorkspace(state => state.pending)
-  const [renderTime] = useState(() => Date.now())
   if (!application && loadedId !== id) return <p role="status">Loading application…</p>
   if (!application) return <EmptyState title="Application not found" description="It may have been removed, or this link is no longer available." action={<Link className="button button-primary" to="/applications">Back to applications</Link>} />
   const app = application
-  const nextInterview = app.interviews.filter(item => item.outcome === 'Scheduled' && Date.parse(item.scheduledAt) >= renderTime).sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))[0]
+  const next = nextAction(app)
   return <>
     <Link to={app.archivedAt ? '/applications?view=archived' : '/applications'} className="back-link"><ArrowLeft size={16} />All applications</Link>
     <div className="details-heading"><div className="details-company"><CompanyMark company={app.company} /><div><p>{app.company}</p><h1>{app.position}</h1><div className="details-subtitle"><span><MapPin size={14} />{app.location || 'Location not specified'}</span><span>·</span><span>{app.employmentType}{app.workMode !== 'Not specified' && app.workMode !== app.location ? ` · ${app.workMode}` : ''}</span><StatusBadge status={app.status} />{app.archivedAt && <span>Archived</span>}</div></div></div><div className="details-actions"><Button variant="secondary" onClick={() => openEditor(app.id)}><Pencil size={15} />Edit application</Button><Button variant="secondary" disabled={pending} onClick={async () => { if (await bulkApplications([app.id], app.archivedAt ? 'restore' : 'archive')) toast(app.archivedAt ? 'Application restored' : 'Application archived') }}>{app.archivedAt ? <RotateCcw size={15} /> : <Archive size={15} />}{app.archivedAt ? 'Restore' : 'Archive'}</Button><button className="icon-button delete-button" aria-label="Delete application" onClick={() => setConfirmDelete(true)}><Trash2 size={18} /></button></div></div>
     {app.companyId && <Link className="text-link company-profile-link" to={`/companies/${app.companyId}`}>Company profile: {app.company}</Link>}
+    <section className="next-action-banner" aria-label="Next action"><span className="next-action-marker" aria-hidden="true">↗</span><div><p className="eyebrow">Next action{next.urgent ? ' / Needs attention' : ''}</p><h2>{next.title}</h2><p>{next.detail}</p></div><Link className="button button-secondary" to={next.href === '/applications/' + app.id ? next.href + '#follow-up' : next.href} onClick={() => { if (next.href === '/applications/' + app.id) document.getElementById('follow-up')?.focus() }}>{next.href === '/applications/' + app.id ? 'Open follow-up' : 'Open next step'}</Link></section>
     <nav className="workspace-tabs" aria-label="Application workspace">{[['overview', 'Overview'], ['tasks', 'Tasks'], ['materials', 'Materials'], ['notes', 'Notes']].map(([value, label]) => <button key={value} aria-current={tab === value ? 'page' : undefined} onClick={() => setParams(value === 'overview' ? {} : { tab: value })}>{label}</button>)}</nav>
     {tab === 'tasks' && <Tasks applicationId={app.id} />}
     {tab === 'materials' && <ApplicationMaterials applicationId={app.id} />}
@@ -55,7 +56,7 @@ export default function ApplicationDetails() {
       <Interviews app={app} />
       <ApplicationTimeline key={app.id} applicationId={app.id} />
     </div><aside className="details-aside">
-      <section className="panel next-step-panel"><h2>Next step</h2>{app.followUpDate && !app.followUpCompletedAt ? <p><strong>{app.followUpDate < dateKey() ? 'Overdue: ' : ''}{app.followUpReason || 'Follow up'}</strong><br />{formatDate(app.followUpDate)}{app.followUpNote && ` · ${app.followUpNote}`}</p> : nextInterview ? <p><strong>{nextInterview.round || nextInterview.type} interview</strong><br />{formatDateTime(nextInterview.scheduledAt)}</p> : <p className="muted">No upcoming step. Schedule a follow-up or interview when you have one.</p>}</section>
+
       <section className="panel status-panel"><h2>Status</h2><label htmlFor="detail-status">Application status</label><select id="detail-status" value={app.status} disabled={pending} onChange={async event => { const status = event.target.value as Status; if (await changeStatus(app.id, status)) toast(`Moved to ${STATUS_META[status].label}`) }}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_META[status].label}</option>)}</select></section>
       <FollowUp app={app} />
       <Contacts app={app} />

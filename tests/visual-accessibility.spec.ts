@@ -2,9 +2,9 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { signup } from './helpers'
 
-const routes = ['/', '/applications', '/kanban', '/analytics', '/settings']
+const routes = ['/', '/applications', '/kanban', '/analytics', '/journey', '/settings']
 
-for (const width of [320, 375, 768, 1024, 1440, 1920]) {
+for (const width of [320, 375, 390, 430, 768, 1024, 1440, 1920]) {
   for (const theme of ['light', 'dark']) {
     test(`all pages and forms fit ${width}px in ${theme} mode`, async ({ page }, testInfo) => {
       const data = await signup(page)

@@ -19,7 +19,7 @@ export function AuthGate() {
   if (phase === 'anonymous' && !['/login', '/signup'].includes(location.pathname)) return <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />
   if (phase === 'authenticated' && ['/login', '/signup'].includes(location.pathname)) {
     const from = (location.state as { from?: string } | null)?.from
-    return <Navigate to={from?.startsWith('/') && !from.startsWith('//') && !['/login', '/signup'].includes(from) ? from : '/today'} replace />
+    return <Navigate to={from?.startsWith('/') && !from.startsWith('//') && !['/login', '/signup'].includes(from) ? from : '/'} replace />
   }
   return <Outlet />
 }
