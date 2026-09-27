@@ -144,14 +144,14 @@ test('export, invalid import, valid import, reset and clear confirmation', async
   const download = await downloadPromise
   const file = await download.path()
   const original = JSON.parse(await readFile(file!, 'utf8')) as { version: number; applications: { company: string }[] }
-  expect(original.version).toBe(2)
+  expect(original.version).toBe(3)
   expect(original.applications).toHaveLength(24)
   await page.getByLabel('Import applications file').setInputFiles({ name: 'broken.json', mimeType: 'application/json', buffer: Buffer.from('{broken') })
   await expect(page.getByRole('alert')).toContainText('Your existing data is unchanged')
   expect(await applications(page)).toHaveLength(24)
   original.applications[0].company = 'Restored Company'
   await page.getByLabel('Import applications file').setInputFiles({ name: 'backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(original)) })
-  await expect(page.getByRole('dialog', { name: 'Replace your applications?' })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: 'Replace your workspace?' })).toBeVisible()
   await page.getByRole('button', { name: 'Replace & import', exact: true }).click()
   await page.reload()
   expect((await applications(page))[0].company).toBe('Restored Company')

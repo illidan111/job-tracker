@@ -6,6 +6,7 @@ const Auth = lazy(() => import('./pages/Auth'))
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Applications = lazy(() => import('./pages/Applications'))
+const SavedJobs = lazy(() => import('./pages/SavedJobs'))
 const Kanban = lazy(() => import('./pages/Kanban'))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const Settings = lazy(() => import('./pages/Settings'))
@@ -17,6 +18,7 @@ export function App() {
     <Routes><Route element={<AuthGate />}><Route path="login" element={<Auth />} /><Route path="signup" element={<Auth signup />} /><Route element={<AppLayout />}>
       <Route index element={<Dashboard />} />
       <Route path="applications" element={<Applications />} />
+      <Route path="saved" element={<SavedJobs />} />
       <Route path="applications/:id" element={<ApplicationDetails />} />
       <Route path="kanban" element={<Kanban />} />
       <Route path="analytics" element={<Analytics />} />

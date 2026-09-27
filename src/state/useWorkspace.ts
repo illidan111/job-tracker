@@ -1,10 +1,10 @@
 import { create } from 'zustand'
-import type { Application, ApplicationInput, ContactInput, InterviewInput, Profile, Status, Workspace } from '../types/application'
+import type { Application, ApplicationInput, ContactInput, InterviewInput, Profile, SavedJob, SavedJobInput, Status, Workspace } from '../types/application'
 import { api, RequestError } from '../utils/api'
 import { useUI } from './useUI'
 
 const blankProfile: Profile = { name: '', email: '', headline: '', weeklyGoal: 8, appearance: 'system', interviewReminders: true }
-const empty = { user: null, applications: [], contacts: [], notifications: [], profile: blankProfile }
+const empty = { user: null, applications: [], savedJobs: [], contacts: [], notifications: [], profile: blankProfile }
 interface WorkspaceState extends Omit<Workspace, 'user'> {
   user: Workspace['user'] | null
   phase: 'loading' | 'authenticated' | 'anonymous' | 'error'
@@ -20,13 +20,18 @@ interface WorkspaceState extends Omit<Workspace, 'user'> {
   editApplication: (id: string, input: ApplicationInput, version?: number) => Promise<boolean>
   changeStatus: (id: string, status: Status) => Promise<boolean>
   deleteApplication: (id: string) => Promise<boolean>
-  replaceApplications: (applications: Application[]) => Promise<boolean>
+  createSavedJob: (input: SavedJobInput) => Promise<boolean>
+  updateSavedJob: (id: string, input: SavedJobInput, version: number) => Promise<boolean>
+  deleteSavedJob: (id: string, version: number) => Promise<boolean>
+  applySavedJob: (id: string, version: number, dateApplied: string) => Promise<boolean>
+  bulkApplications: (ids: string[], action: 'status' | 'addTag' | 'removeTag' | 'archive' | 'restore' | 'delete', value?: string) => Promise<boolean>
+  replaceApplications: (applications: Application[], savedJobs?: SavedJob[]) => Promise<boolean>
   resetDemo: () => Promise<boolean>
   clearApplications: () => Promise<boolean>
   updateProfile: (profile: Profile) => Promise<boolean>
   saveInterview: (id: string, input: InterviewInput, interviewId?: string, version?: number) => Promise<boolean>
   deleteInterview: (id: string, interviewId: string) => Promise<boolean>
-  saveFollowUp: (id: string, date: string, complete: boolean) => Promise<boolean>
+  saveFollowUp: (id: string, date: string, complete: boolean, reason?: string, note?: string) => Promise<boolean>
   attachContact: (id: string, value: { contactId: string } | { contact: ContactInput }) => Promise<boolean>
   editContact: (id: string, input: ContactInput, version: number) => Promise<boolean>
   detachContact: (id: string, contactId: string) => Promise<boolean>
@@ -103,13 +108,18 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     editApplication: (id, input, expected) => record(id, `/applications/${id}`, 'PUT', { ...input, version: expected ?? version(id) }),
     changeStatus: (id, status) => record(id, `/applications/${id}/status`, 'PATCH', { status, version: version(id) }, status),
     deleteApplication: id => mutate(async () => { const current = epoch; await api(`/applications/${id}`, 'DELETE', { version: version(id) }); if (current === epoch) set({ applications: get().applications.filter(app => app.id !== id), notifications: get().notifications.filter(item => item.applicationId !== id) }) }),
-    replaceApplications: applications => full('/workspace/import', 'POST', { applications }),
+    createSavedJob: input => mutate(async () => { const current = epoch; const job = await api<SavedJob>('/saved-jobs', 'POST', input); if (current === epoch) set({ savedJobs: [job, ...get().savedJobs] }) }),
+    updateSavedJob: (id, input, version) => mutate(async () => { const current = epoch; const job = await api<SavedJob>(`/saved-jobs/${id}`, 'PUT', { ...input, version }); if (current === epoch) set({ savedJobs: get().savedJobs.map(item => item.id === id ? job : item) }) }),
+    deleteSavedJob: (id, version) => mutate(async () => { const current = epoch; await api(`/saved-jobs/${id}`, 'DELETE', { version }); if (current === epoch) set({ savedJobs: get().savedJobs.filter(job => job.id !== id) }) }),
+    applySavedJob: (id, version, dateApplied) => mutate(async () => { const current = epoch; const app = await api<Application>(`/saved-jobs/${id}/apply`, 'POST', { version, dateApplied }); if (current === epoch) set({ savedJobs: get().savedJobs.filter(job => job.id !== id), applications: [app, ...get().applications] }) }),
+    bulkApplications: (ids, action, value) => full('/applications/bulk', 'POST', { items: ids.map(id => ({ id, version: version(id) })), action, value }),
+    replaceApplications: (applications, savedJobs) => full('/workspace/import', 'POST', { applications, ...(savedJobs && { savedJobs }) }),
     resetDemo: () => full('/workspace/demo', 'POST', {}),
     clearApplications: () => full('/workspace/clear', 'POST', {}),
     updateProfile: profile => full('/profile', 'PATCH', profile),
     saveInterview: (id, input, interviewId, expected) => record(id, `/applications/${id}/interviews${interviewId ? `/${interviewId}` : ''}`, interviewId ? 'PUT' : 'POST', { ...input, version: expected ?? version(id) }),
     deleteInterview: (id, interviewId) => record(id, `/applications/${id}/interviews/${interviewId}`, 'DELETE', { version: version(id) }),
-    saveFollowUp: (id, date, complete) => record(id, `/applications/${id}/follow-up`, 'PATCH', { date, complete, version: version(id) }),
+    saveFollowUp: (id, date, complete, reason = '', note = '') => record(id, `/applications/${id}/follow-up`, 'PATCH', { date, complete, reason, note, version: version(id) }),
     attachContact: (id, value) => full(`/applications/${id}/contacts`, 'POST', { ...value, version: version(id) }),
     editContact: (id, input, version) => full(`/contacts/${id}`, 'PUT', { ...input, version }),
     detachContact: (id, contactId) => full(`/applications/${id}/contacts/${contactId}`, 'DELETE', { version: version(id) }),

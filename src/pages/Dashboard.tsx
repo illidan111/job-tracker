@@ -16,14 +16,18 @@ import { Button } from '../components/ui/Button'
 
 export default function Dashboard() {
   const applications = useWorkspace(state => state.applications)
+  const savedJobs = useWorkspace(state => state.savedJobs)
+  const current = applications.filter(app => !app.archivedAt)
   const openEditor = useUI(state => state.openEditor)
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly')
   const [recentTab, setRecentTab] = useState<'applications' | 'activity'>('applications')
   const [upcomingTab, setUpcomingTab] = useState<'interviews' | 'followups'>('interviews')
-  const followups = upcomingFollowUps(applications)
+  const followups = upcomingFollowUps(current)
   const metrics = getMetrics(applications)
-  const upcoming = upcomingInterviews(applications)
-  const recent = [...applications].sort((a, b) => b.dateApplied.localeCompare(a.dateApplied)).slice(0, 5)
+  const upcoming = upcomingInterviews(current)
+  const recent = [...current].sort((a, b) => b.dateApplied.localeCompare(a.dateApplied)).slice(0, 5)
+  const dueToday = followups.filter(app => app.followUpDate <= dateKey()).length
+  const deadlines = savedJobs.filter(job => job.deadline && job.deadline <= dateKey()).length
   const supportingStats = [
     { label: 'Interviewed', value: metrics.interviews, detail: metrics.total ? `${metrics.interviewRate}% conversion` : 'No applications yet', to: '/analytics' },
     { label: 'Offers', value: metrics.offers, detail: metrics.total ? `${metrics.offerRate}% conversion` : 'No applications yet', to: '/analytics' },
@@ -31,6 +35,7 @@ export default function Dashboard() {
   ]
   return <>
     <PageHeading title="Overview" />
+    {(dueToday > 0 || deadlines > 0 || savedJobs.length > 0) && <section className="today-strip" aria-label="Needs attention"><strong>Today</strong>{dueToday > 0 && <Link to="/applications">{dueToday} follow-up{dueToday === 1 ? '' : 's'} due or overdue</Link>}{deadlines > 0 && <Link to="/saved">{deadlines} saved job deadline{deadlines === 1 ? '' : 's'} reached</Link>}<Link to="/saved">{savedJobs.length} saved job{savedJobs.length === 1 ? '' : 's'} to review <ArrowRight size={14} /></Link></section>}
     <section className="overview-metrics" aria-label="Job search statistics">
       <Link to="/applications" className="overview-primary-metric"><span className="metric-label">Active applications</span><strong>{metrics.active}</strong><span className="metric-detail">{metrics.thisWeek} sent this week <ArrowUpRight size={15} /></span></Link>
       <div className="overview-support-metrics">{supportingStats.map(({ label, value, detail, to }) => <Link to={to} className="overview-support-metric" key={label}><span>{label}</span><strong>{value}</strong>{detail && <small>{detail}</small>}</Link>)}</div>
@@ -41,7 +46,7 @@ export default function Dashboard() {
     </div>
     <div className="dashboard-chart-grid">
       <section className="panel activity-panel"><div className="panel-heading"><div><h2>Application activity</h2></div><div className="segmented-control" aria-label="Chart period"><button onClick={() => setPeriod('weekly')} aria-pressed={period === 'weekly'}>Weekly</button><button onClick={() => setPeriod('monthly')} aria-pressed={period === 'monthly'}>Monthly</button></div></div><ActivityChart applications={applications} period={period} /><div className="chart-footnote"><span className="legend-dot" />Applications sent<span>{period === 'weekly' ? 'Last 8 weeks' : 'Last 6 months'}</span></div></section>
-      <section className="panel pipeline-panel"><div className="panel-heading"><div><h2>Pipeline</h2></div><Link className="icon-button" to="/kanban" aria-label="Open Kanban board"><ArrowUpRight size={19} /></Link></div><StatusChart applications={applications} /></section>
+      <section className="panel pipeline-panel"><div className="panel-heading"><div><h2>Pipeline</h2></div><Link className="icon-button" to="/kanban" aria-label="Open Kanban board"><ArrowUpRight size={19} /></Link></div><StatusChart applications={current} /></section>
     </div>
   </>
 }

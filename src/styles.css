@@ -693,6 +693,56 @@ a.stat-card:hover { background: var(--green-soft); }
   .notification-list > button { align-items: flex-start; flex-direction: column; gap: 10px; }
   .toast-region { right: 16px; bottom: 16px; }
 }
+
+.page-intro { color: var(--muted); margin: -8px 0 25px; font-size: 14px; }
+.saved-jobs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.saved-job-card { min-width: 0; padding: 22px; display: flex; flex-direction: column; gap: 13px; }
+.saved-job-heading { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.saved-job-heading > div:last-child { min-width: 0; }
+.saved-job-heading h2 { font-size: 17px; margin: 0 0 3px; overflow-wrap: anywhere; }
+.saved-job-heading p, .saved-job-meta { color: var(--muted); font-size: 13px; margin: 0; overflow-wrap: anywhere; }
+.saved-job-note { margin: 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.deadline-due { color: var(--danger); font-weight: 600; }
+.saved-job-actions { display: flex; align-items: center; gap: 7px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); }
+.saved-job-actions .button { margin-right: auto; }
+.saved-job-form .form-grid > label { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 13px; font-weight: 500; }
+.saved-job-form input, .saved-job-form select, .saved-job-form textarea { width: 100%; }
+.saved-job-form textarea { resize: vertical; }
+.archive-switch { display: flex; gap: 6px; margin: 0 0 20px; }
+.archive-switch button { border: 1px solid var(--border); border-radius: 7px; padding: 9px 13px; font-size: 13px; color: var(--muted); background: transparent; }
+.archive-switch button[aria-pressed="true"] { background: var(--surface); border-color: var(--border-strong); color: var(--text); font-weight: 600; }
+.archive-switch span { color: var(--faint); margin-left: 5px; }
+.bulk-bar { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 12px; background: var(--green-soft); border: 1px solid var(--border); border-radius: 8px; margin: 12px 0; }
+.bulk-bar strong { font-size: 13px; margin-right: auto; white-space: nowrap; }
+.bulk-bar select, .bulk-bar input { max-width: 190px; min-width: 120px; }
+.bulk-bar .text-link { font-size: 12px; }
+.application-table .selection-cell { width: 38px; padding-inline: 8px !important; }
+.selection-cell input { width: 16px; height: 16px; accent-color: var(--primary); }
+.today-strip { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 13px 15px; margin: 0 0 26px; border: 1px solid var(--border); border-radius: 9px; background: var(--surface); font-size: 13px; }
+.today-strip a { display: inline-flex; gap: 4px; align-items: center; color: var(--primary); }
+.search-funnel, .response-insight, .source-breakdown { padding: 22px; margin-top: 20px; }
+.funnel-steps { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin: 14px 0; }
+.funnel-steps > div { display: flex; flex-direction: column; gap: 7px; border-top: 2px solid var(--primary); padding-top: 10px; }
+.funnel-steps span { color: var(--muted); font-size: 12px; }
+.funnel-steps strong, .response-insight > strong { font-size: 29px; font-weight: 600; }
+.response-insight h2 { font-size: 16px; margin: 0 0 9px; }
+.response-insight p, .search-funnel p { font-size: 12px; margin: 10px 0 0; }
+.next-step-panel { padding: 20px; }
+.next-step-panel h2 { font-size: 15px; margin: 0 0 10px; }
+.next-step-panel p { font-size: 13px; line-height: 1.6; margin: 0; overflow-wrap: anywhere; }
+.details-actions { flex-wrap: wrap; flex-shrink: 1; min-width: 0; }
+.command-search { display: flex; align-items: center; gap: 10px; margin: 18px 20px 10px; padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 8px; }
+.command-search input { flex: 1; min-width: 0; border: 0; box-shadow: none; }
+.command-results { max-height: min(52vh, 370px); overflow-y: auto; padding: 4px 20px 10px; }
+.command-results button { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 12px; border-radius: 7px; font-size: 13px; text-align: left; }
+.command-results button:hover, .command-results button:focus-visible { background: var(--green-soft); }
+.command-results .muted { padding: 15px 12px; }
+.command-hint { border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; padding: 12px 20px; margin: 0; }
+@media (max-width: 700px) {
+  .saved-jobs-grid { grid-template-columns: 1fr; }
+  .funnel-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .bulk-bar select, .bulk-bar input { max-width: none; flex: 1 1 130px; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }

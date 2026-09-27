@@ -45,7 +45,7 @@ export default function Kanban() {
   const [search, setSearch] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-  const filtered = filterApplications(applications, { ...emptyFilters, search })
+  const filtered = filterApplications(applications.filter(app => !app.archivedAt), { ...emptyFilters, search })
   const activeApplication = applications.find(app => app.id === activeId)
   const onDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveId(null)

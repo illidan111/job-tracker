@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDemoApplications } from '../data/demo'
 import { applicationFormSchema, applicationsSchema } from '../validation/application'
 import { activityData, emptyFilters, filterApplications, getMetrics } from './applications'
-import { exportApplications, parseImport, readLegacyApplications, STORAGE_KEY } from './storage'
+import { exportApplications, exportWorkspaceBackup, parseImport, parseWorkspaceBackup, readLegacyApplications, STORAGE_KEY } from './storage'
 import { dateKey, formatDate } from './dates'
 
 function memoryStorage() {
@@ -98,6 +98,13 @@ describe('persistence and backups', () => {
     const minimal: Record<string, unknown> = { ...apps[0] }
     for (const field of ['notes', 'jobUrl', 'recruiter', 'tags']) delete minimal[field]
     expect(parseImport(JSON.stringify([minimal]))[0]).toMatchObject({ notes: '', jobUrl: '', recruiter: '', tags: [] })
+  })
+  it('roundtrips saved jobs in v3 backups and rejects duplicate saved IDs', () => {
+    const apps = createDemoApplications().slice(0, 1)
+    const job = { id: 'saved-1', company: 'Northstar', position: 'Engineer', location: '', jobUrl: '', source: 'Referral' as const, deadline: '', notes: '', version: 1, createdAt: apps[0].createdAt, updatedAt: apps[0].updatedAt }
+    expect(parseWorkspaceBackup(exportWorkspaceBackup(apps, [job]))).toEqual({ applications: apps, savedJobs: [job] })
+    expect(() => parseWorkspaceBackup(exportWorkspaceBackup(apps, [job, job]))).toThrow()
+    expect(parseWorkspaceBackup(exportApplications(apps)).savedJobs).toEqual([])
   })
   it('rejects malformed, duplicate, unknown-version and unsafe imports', () => {
     const apps = createDemoApplications()

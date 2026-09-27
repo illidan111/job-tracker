@@ -1,11 +1,11 @@
-import type { Application, EmploymentType, Status, WorkMode } from '../types/application'
+import type { Application, ApplicationSource, EmploymentType, Status, WorkMode } from '../types/application'
 import { daysAgo, dateKey, parseDate, startOfWeek } from './dates'
 
 export interface Filters {
   search: string; status: Status | ''; location: string; employmentType: EmploymentType | ''
-  minSalary: string; maxSalary: string; from: string; to: string; tag: string; workMode: WorkMode | ''
+  minSalary: string; maxSalary: string; from: string; to: string; tag: string; workMode: WorkMode | ''; source: ApplicationSource | ''
 }
-export const emptyFilters: Filters = { search: '', status: '', location: '', employmentType: '', minSalary: '', maxSalary: '', from: '', to: '', tag: '', workMode: '' }
+export const emptyFilters: Filters = { search: '', status: '', location: '', employmentType: '', minSalary: '', maxSalary: '', from: '', to: '', tag: '', workMode: '', source: '' }
 export type SortKey = 'newest' | 'oldest' | 'company' | 'salary'
 
 export function filterApplications(applications: Application[], filters: Filters, sort: SortKey = 'newest') {
@@ -16,6 +16,7 @@ export function filterApplications(applications: Application[], filters: Filters
     (!filters.location || app.location === filters.location) &&
     (!filters.employmentType || app.employmentType === filters.employmentType) &&
     (!filters.workMode || app.workMode === filters.workMode) &&
+    (!filters.source || app.source === filters.source) &&
     (!filters.tag || app.tags.some(tag => tag.toLowerCase() === filters.tag.toLowerCase())) &&
     (!filters.minSalary || (app.salary !== undefined && app.salary >= Number(filters.minSalary))) &&
     (!filters.maxSalary || (app.salary !== undefined && app.salary <= Number(filters.maxSalary))) &&
@@ -38,7 +39,7 @@ export function getMetrics(applications: Application[]) {
   const thisMonth = applications.filter(app => app.dateApplied.slice(0, 7) === today.slice(0, 7) && app.dateApplied <= today).length
   return {
     total, interviews, offers, thisMonth,
-    active: applications.filter(app => !['OFFER', 'REJECTED'].includes(app.status)).length,
+    active: applications.filter(app => !app.archivedAt && !['OFFER', 'REJECTED'].includes(app.status)).length,
     rejectionRate: total ? Math.round(applications.filter(app => app.status === 'REJECTED').length / total * 100) : 0,
     rejections: applications.filter(app => app.status === 'REJECTED').length,
     thisWeek: applications.filter(app => app.dateApplied >= startOfWeek() && app.dateApplied <= dateKey()).length,

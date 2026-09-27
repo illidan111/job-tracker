@@ -8,7 +8,7 @@ import { createApp } from './app'
 import { openDatabase } from './database'
 import { hashToken } from './auth'
 import { createDemoApplications } from '../src/data/demo'
-import type { Application, Workspace } from '../src/types/application'
+import type { Application, SavedJob, Workspace } from '../src/types/application'
 
 const origin = 'http://127.0.0.1:5173'
 let base = '', server: Server, db: DatabaseSync, directory = ''
@@ -37,6 +37,55 @@ beforeEach(async () => { expect((await alice.request('/workspace/clear', 'POST',
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); db.close(); rmSync(directory, { recursive: true, force: true }) })
 
 describe('authenticated database API', () => {
+  it('saves a job, isolates it by account, and converts its details atomically', async () => {
+    await alice.request('/workspace/import', 'POST', { applications: [], savedJobs: [] })
+    const input = { company: 'Waypoint Labs', position: 'Staff Engineer', location: 'Remote', jobUrl: 'https://example.test/job', salary: 180000, source: 'Referral', deadline: '2026-12-01', notes: 'Ask about platform scope' }
+    const response = await alice.request('/saved-jobs', 'POST', input)
+    expect(response.status).toBe(201)
+    const job = await response.json() as SavedJob
+    expect((await alice.workspace()).savedJobs).toHaveLength(1)
+    expect((await bob.workspace()).savedJobs.some(item => item.id === job.id)).toBe(false)
+    expect((await bob.request(`/saved-jobs/${job.id}/apply`, 'POST', { version: job.version, dateApplied: '2026-09-27' })).status).toBe(404)
+    expect((await alice.request(`/saved-jobs/${job.id}/apply`, 'POST', { version: 99, dateApplied: '2026-09-27' })).status).toBe(409)
+    const converted = await alice.request(`/saved-jobs/${job.id}/apply`, 'POST', { version: job.version, dateApplied: '2026-09-27' })
+    expect(converted.status).toBe(201)
+    const app = await converted.json() as Application
+    expect(app).toMatchObject({ company: input.company, position: input.position, source: input.source, deadline: input.deadline, notes: input.notes, dateApplied: '2026-09-27' })
+    expect(app.timeline.some(event => event.description === 'Applied to saved job')).toBe(true)
+    expect((await alice.workspace()).savedJobs).toHaveLength(0)
+  })
+  it('keeps bulk changes atomic and hides archived applications from reminders', async () => {
+    const first = await alice.create(), second = await alice.create()
+    const items = [first, second].map(app => ({ id: app.id, version: app.version }))
+    expect((await bob.request('/applications/bulk', 'POST', { items, action: 'archive' })).status).toBe(404)
+    expect((await alice.request('/applications/bulk', 'POST', { items: [...items, { id: 'missing', version: 1 }], action: 'archive' })).status).toBe(404)
+    expect((await alice.workspace()).applications.filter(app => app.archivedAt)).toHaveLength(0)
+    let response = await alice.request('/applications/bulk', 'POST', { items, action: 'addTag', value: 'Priority' })
+    expect(response.status).toBe(200)
+    let workspace = await response.json() as Workspace
+    expect(workspace.applications.every(app => app.tags.includes('Priority'))).toBe(true)
+    response = await alice.request('/applications/bulk', 'POST', { items: workspace.applications.map(app => ({ id: app.id, version: app.version })), action: 'archive' })
+    expect(response.status).toBe(200)
+    workspace = await response.json() as Workspace
+    expect(workspace.applications.every(app => app.archivedAt)).toBe(true)
+    expect(workspace.notifications).toHaveLength(0)
+    response = await alice.request('/applications/bulk', 'POST', { items: workspace.applications.map(app => ({ id: app.id, version: app.version })), action: 'restore' })
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as Workspace).applications.every(app => !app.archivedAt)).toBe(true)
+  })
+  it('restores saved jobs alongside applications and validates backups before replacement', async () => {
+    await alice.request('/workspace/import', 'POST', { applications: [], savedJobs: [] })
+    const response = await alice.request('/saved-jobs', 'POST', { company: 'Northstar', position: 'Engineer', location: '', jobUrl: '', source: '', deadline: '', notes: '' })
+    const job = await response.json() as SavedJob
+    const app = await alice.create()
+    expect((await alice.request('/workspace/import', 'POST', { applications: [app], savedJobs: [job, job] })).status).toBe(422)
+    expect((await alice.workspace()).savedJobs).toHaveLength(1)
+    const restored = await alice.request('/workspace/import', 'POST', { applications: [app], savedJobs: [job] })
+    expect(restored.status).toBe(200)
+    const workspace = await restored.json() as Workspace
+    expect(workspace.savedJobs).toMatchObject([{ company: 'Northstar', position: 'Engineer' }])
+    expect(workspace.applications).toHaveLength(1)
+  })
   it('uses durable, HttpOnly sessions and never returns credentials', async () => {
     const client = new Client()
     const response = await client.request('/auth/login', 'POST', { email: 'ALICE@example.test', password })

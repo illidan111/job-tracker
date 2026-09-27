@@ -1,10 +1,10 @@
 import { useRef, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { BriefcaseBusiness, ChevronDown, Plus, Save } from 'lucide-react'
 import { applicationFormSchema } from '../validation/application'
 import type { ApplicationFormValues } from '../validation/application'
-import { EMPLOYMENT_TYPES, STATUSES, STATUS_META, WORK_MODES } from '../types/application'
+import { APPLICATION_SOURCES, EMPLOYMENT_TYPES, STATUSES, STATUS_META, WORK_MODES } from '../types/application'
 import { useWorkspace } from '../state/useWorkspace'
 import { useUI } from '../state/useUI'
 import { dateKey, localDateTime } from '../utils/dates'
@@ -17,20 +17,23 @@ export function ApplicationForm() {
   const closeEditor = useUI(state => state.closeEditor)
   const toast = useUI(state => state.toast)
   const application = useWorkspace(state => state.applications.find(app => app.id === editor?.id))
+  const applications = useWorkspace(state => state.applications)
   const add = useWorkspace(state => state.addApplication)
   const edit = useWorkspace(state => state.editApplication)
   const [discard, setDiscard] = useState(false)
   const [version, setVersion] = useState(application?.version)
   const serverError = useWorkspace(state => state.storageError)
   const extraFields = useRef<HTMLDetailsElement>(null)
-  const { register, handleSubmit, formState: { errors, isDirty, isSubmitting } } = useForm<ApplicationFormValues>({
+  const { register, control, handleSubmit, formState: { errors, isDirty, isSubmitting } } = useForm<ApplicationFormValues>({
     resolver: zodResolver(applicationFormSchema),
     defaultValues: application ? { ...application, salary: application.salary === undefined ? '' : String(application.salary), tags: application.tags.join(', '), interviewDate: localDateTime(application.interviewDate) } : {
       company: '', position: '', location: '', salary: '', employmentType: 'Full-time',
       status: editor?.status ?? 'APPLIED', dateApplied: dateKey(), jobUrl: '', recruiter: '',
-      recruiterEmail: '', interviewDate: '', notes: '', tags: '', workMode: 'Not specified', followUpDate: '',
+      recruiterEmail: '', interviewDate: '', notes: '', tags: '', workMode: 'Not specified', followUpDate: '', source: '', deadline: '', followUpReason: '', followUpNote: '',
     },
   })
+  const [company, position] = useWatch({ control, name: ['company', 'position'] })
+  const duplicate = company?.trim() && position?.trim() ? applications.find(item => item.id !== application?.id && item.company.trim().toLowerCase() === company.trim().toLowerCase() && item.position.trim().toLowerCase() === position.trim().toLowerCase()) : undefined
   const requestClose = () => { if (!isSubmitting) { if (isDirty) setDiscard(true); else closeEditor() } }
   const onSubmit = async (values: ApplicationFormValues) => {
     const input = {
@@ -53,6 +56,7 @@ export function ApplicationForm() {
         <div className="form-body">
           {serverError && <p className="form-error" role="alert">{serverError}</p>}
           {editor?.id && !application && <p className="form-error" role="alert">This application was deleted. Close this form to return to your workspace.</p>}
+          {duplicate && <p className="duplicate-notice" role="status">This looks similar to your {duplicate.company} application. You can still save it.</p>}
           <div className="form-section-title"><BriefcaseBusiness size={17} /><h3>Application</h3><span>* Required</span></div>
           <div className="form-grid">
             <Field label="Company *" error={errors.company?.message}>{props => <input {...props} {...register('company')} autoFocus placeholder="e.g. Linear" autoComplete="organization" />}</Field>
@@ -67,6 +71,8 @@ export function ApplicationForm() {
             <Field label="Annual salary (USD)" error={errors.salary?.message}>{props => <input {...props} {...register('salary')} inputMode="decimal" placeholder="e.g. 120000" />}</Field>
             <Field label="Employment type" error={errors.employmentType?.message}>{props => <select {...props} {...register('employmentType')}>{EMPLOYMENT_TYPES.map(type => <option key={type}>{type}</option>)}</select>}</Field>
             <Field label="Job URL" error={errors.jobUrl?.message} className="full-width">{props => <input {...props} {...register('jobUrl')} type="url" placeholder="https://company.com/careers/…" />}</Field>
+            <Field label="Source" error={errors.source?.message}>{props => <select {...props} {...register('source')}><option value="">Not specified</option>{APPLICATION_SOURCES.map(source => <option key={source}>{source}</option>)}</select>}</Field>
+            <Field label="Application deadline" error={errors.deadline?.message}>{props => <input {...props} {...register('deadline')} type="date" />}</Field>
           </div>
           <details ref={extraFields} className="form-details" open={Boolean(application)}>
             <summary>People, interviews & notes <ChevronDown size={16} /></summary>
@@ -76,6 +82,8 @@ export function ApplicationForm() {
               <Field label="Interview date & time" error={errors.interviewDate?.message} hint="In your current timezone.">{props => <input {...props} {...register('interviewDate')} type="datetime-local" />}</Field>
               <Field label="Tags" error={errors.tags?.message} hint="Separate tags with commas. Up to 10.">{props => <input {...props} {...register('tags')} placeholder="React, Remote, Dream role" />}</Field>
               <Field label="Follow up on" error={errors.followUpDate?.message}>{props => <input {...props} {...register('followUpDate')} type="date" />}</Field>
+              <Field label="Follow-up reason" error={errors.followUpReason?.message}>{props => <input {...props} {...register('followUpReason')} placeholder="e.g. Send a thank-you" />}</Field>
+              <Field label="Follow-up note" error={errors.followUpNote?.message} className="full-width">{props => <textarea {...props} {...register('followUpNote')} rows={2} placeholder="What do you need to send or ask?" />}</Field>
               <Field label="Notes" error={errors.notes?.message} className="full-width">{props => <textarea {...props} {...register('notes')} rows={4} placeholder="Notes, links, and questions…" />}</Field>
             </div>
           </details>

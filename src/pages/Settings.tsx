@@ -2,11 +2,12 @@ import { useRef, useState } from 'react'
 import { Bell, Check, Download, HardDrive, Laptop, Moon, RotateCcw, ShieldCheck, Sun, Trash2, Upload, UserRound } from 'lucide-react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import type { Application, Profile } from '../types/application'
+import type { Profile } from '../types/application'
 import { profileSchema } from '../validation/application'
 import { useWorkspace } from '../state/useWorkspace'
 import { useUI } from '../state/useUI'
-import { exportApplications, parseImport, readLegacyApplications, STORAGE_KEY } from '../utils/storage'
+import { exportWorkspaceBackup, parseWorkspaceBackup, readLegacyApplications, STORAGE_KEY } from '../utils/storage'
+import type { WorkspaceBackup } from '../utils/storage'
 import { dateKey } from '../utils/dates'
 import { PageHeading } from '../components/PageHeading'
 import { Field } from '../components/ui/Field'
@@ -15,24 +16,26 @@ import { ConfirmDialog } from '../components/ui/Dialog'
 
 function ProfileForm() {
   const profile = useWorkspace(state => state.profile)
+  const pending = useWorkspace(state => state.pending)
   const updateProfile = useWorkspace(state => state.updateProfile)
   const toast = useUI(state => state.toast)
   const { register, handleSubmit, reset, formState: { errors, isDirty, isSubmitting } } = useForm<Profile>({ resolver: zodResolver(profileSchema), defaultValues: profile })
   return <form onSubmit={handleSubmit(async values => { const merged = { ...useWorkspace.getState().profile, name: values.name, email: values.email, headline: values.headline, weeklyGoal: values.weeklyGoal }; if (await updateProfile(merged)) { reset(merged); toast('Profile saved') } })} noValidate>
     <div className="settings-section-heading"><span className="settings-section-icon"><UserRound size={19} /></span><div><h2>Your profile</h2></div></div>
     <div className="profile-settings-body"><div className="profile-avatar-large">{profile.name.split(' ').map(word => word[0]).slice(0, 2).join('')}</div><div className="form-grid"><Field label="Full name" error={errors.name?.message}>{props => <input {...props} {...register('name')} autoComplete="name" />}</Field><Field label="Email" error={errors.email?.message} hint="Your sign-in email.">{props => <input {...props} {...register('email')} type="email" readOnly autoComplete="email" placeholder="you@example.com" />}</Field><Field label="Career focus" error={errors.headline?.message}>{props => <input {...props} {...register('headline')} placeholder="e.g. Frontend engineering" />}</Field><Field label="Weekly application goal" error={errors.weeklyGoal?.message}>{props => <input {...props} {...register('weeklyGoal', { valueAsNumber: true })} type="number" min="1" max="100" />}</Field></div></div>
-    <div className="settings-form-actions"><span>{isDirty ? 'Unsaved changes' : 'Profile saved'}</span><Button type="submit" disabled={!isDirty || isSubmitting} size="sm">Save profile</Button></div>
+    <div className="settings-form-actions"><span>{isDirty ? 'Unsaved changes' : 'Profile saved'}</span><Button type="submit" disabled={!isDirty || isSubmitting || pending} size="sm">Save profile</Button></div>
   </form>
 }
 
 export default function Settings() {
   const applications = useWorkspace(state => state.applications)
+  const savedJobs = useWorkspace(state => state.savedJobs)
   const profile = useWorkspace(state => state.profile)
   const updateProfile = useWorkspace(state => state.updateProfile)
   const replaceApplications = useWorkspace(state => state.replaceApplications)
   const toast = useUI(state => state.toast)
   const [confirmation, setConfirmation] = useState<'clear' | 'reset' | 'import' | null>(null)
-  const [pendingImport, setPendingImport] = useState<Application[] | null>(null)
+  const [pendingImport, setPendingImport] = useState<WorkspaceBackup | null>(null)
   const [importError, setImportError] = useState('')
   const [importing, setImporting] = useState(false)
   const pending = useWorkspace(state => state.pending)
@@ -40,15 +43,15 @@ export default function Settings() {
   const [hasLegacy] = useState(() => { try { return Boolean(localStorage.getItem(STORAGE_KEY)) } catch { return false } })
   const fileRef = useRef<HTMLInputElement>(null)
   const download = () => {
-    const url = URL.createObjectURL(new Blob([exportApplications(applications)], { type: 'application/json' }))
+    const url = URL.createObjectURL(new Blob([exportWorkspaceBackup(applications, savedJobs)], { type: 'application/json' }))
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `waypoint-applications-${dateKey()}.json`
+    anchor.download = `waypoint-backup-${dateKey()}.json`
     document.body.append(anchor)
     anchor.click()
     anchor.remove()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
-    toast(`Exported ${applications.length} applications`)
+    toast(`Exported ${applications.length} applications and ${savedJobs.length} saved jobs`)
   }
   const importFile = async (file?: File) => {
     setImportError('')
@@ -56,7 +59,7 @@ export default function Settings() {
     if (file.size > 5 * 1024 * 1024) { setImportError('Choose a JSON file smaller than 5 MB. Your existing data is unchanged.'); return }
     setImporting(true)
     try {
-      const data = parseImport(await file.text())
+      const data = parseWorkspaceBackup(await file.text())
       setPendingImport(data)
       setConfirmation('import')
     } catch {
@@ -66,7 +69,7 @@ export default function Settings() {
   const confirm = async () => {
     if (confirmation === 'clear') { if (!await useWorkspace.getState().clearApplications()) return; toast('All applications cleared') }
     if (confirmation === 'reset') { if (!await useWorkspace.getState().resetDemo()) return; toast('Demo workspace restored') }
-    if (confirmation === 'import' && pendingImport) { if (!await replaceApplications(pendingImport)) return; toast(`Imported ${pendingImport.length} applications`); setPendingImport(null) }
+    if (confirmation === 'import' && pendingImport) { if (!await replaceApplications(pendingImport.applications, pendingImport.savedJobs)) return; toast(`Imported ${pendingImport.applications.length} applications and ${pendingImport.savedJobs.length} saved jobs`); setPendingImport(null) }
     setConfirmation(null)
   }
   return <>
@@ -76,14 +79,14 @@ export default function Settings() {
       <section className="panel settings-panel"><div className="settings-section-heading"><span className="settings-section-icon"><Sun size={19} /></span><div><h2>Appearance</h2></div></div><div className="appearance-options">{([{ value: 'light', label: 'Light', icon: Sun }, { value: 'dark', label: 'Dark', icon: Moon }, { value: 'system', label: 'System', icon: Laptop }] as const).map(({ value, label, icon: Icon }) => <button key={value} className={`appearance-option ${profile.appearance === value ? 'selected' : ''}`} aria-pressed={profile.appearance === value} disabled={pending} onClick={() => updateProfile({ ...profile, appearance: value })}><div className={`theme-preview preview-${value}`} aria-hidden="true"><span /><div><i /><i /><i /><b /></div></div><span><Icon size={15} />{label}{profile.appearance === value && <Check size={15} />}</span></button>)}</div></section>
       <section className="panel settings-panel"><div className="settings-section-heading"><span className="settings-section-icon"><Bell size={19} /></span><div><h2>Notifications</h2></div></div><div className="notification-setting"><div><h3 id="reminder-label">Interview reminders</h3><p id="reminder-description">Show interviews due within 48 hours. Due follow-ups always appear.</p></div><button className={`switch ${profile.interviewReminders ? 'on' : ''}`} role="switch" disabled={pending} aria-checked={profile.interviewReminders} aria-labelledby="reminder-label" aria-describedby="reminder-description" onClick={() => updateProfile({ ...profile, interviewReminders: !profile.interviewReminders })}><span /></button></div></section>
       <section className="panel settings-panel"><div className="settings-section-heading"><span className="settings-section-icon"><HardDrive size={19} /></span><div><h2>Your data</h2></div></div>
-        <div className="data-action"><div><h3>Export applications</h3><p>Download all {applications.length} applications and their history as JSON.</p></div><Button variant="secondary" size="sm" onClick={download}><Download size={15} />Export JSON</Button></div>
-        <div className="data-action"><div><h3>Import a backup</h3><p>Restore a Waypoint JSON export. Replaces your current applications.</p></div><input ref={fileRef} type="file" accept=".json,application/json" className="sr-only" tabIndex={-1} aria-label="Import applications file" onChange={event => { void importFile(event.target.files?.[0]) }} /><Button variant="secondary" size="sm" disabled={importing} onClick={() => fileRef.current?.click()}><Upload size={15} />{importing ? 'Checking file…' : 'Import JSON'}</Button></div>
-        {hasLegacy && <div className="data-action"><div><h3>Bring your browser workspace</h3><p>Review and import applications saved by an earlier version on this device.</p></div><Button variant="secondary" size="sm" onClick={() => { try { const apps = readLegacyApplications(); if (apps) { setPendingImport(apps); setConfirmation('import') } } catch { setImportError('The browser backup could not be read. It has been left untouched.') } }}>Import browser data</Button></div>}
+        <div className="data-action"><div><h3>Export workspace</h3><p>Download {applications.length} applications, their history, and {savedJobs.length} saved jobs as JSON.</p></div><Button variant="secondary" size="sm" onClick={download}><Download size={15} />Export JSON</Button></div>
+        <div className="data-action"><div><h3>Import a backup</h3><p>Restore a Waypoint JSON export. Replaces applications and saved jobs.</p></div><input ref={fileRef} type="file" accept=".json,application/json" className="sr-only" tabIndex={-1} aria-label="Import applications file" onChange={event => { void importFile(event.target.files?.[0]) }} /><Button variant="secondary" size="sm" disabled={importing} onClick={() => fileRef.current?.click()}><Upload size={15} />{importing ? 'Checking file…' : 'Import JSON'}</Button></div>
+        {hasLegacy && <div className="data-action"><div><h3>Bring your browser workspace</h3><p>Review and import applications saved by an earlier version on this device.</p></div><Button variant="secondary" size="sm" onClick={() => { try { const apps = readLegacyApplications(); if (apps) { setPendingImport({ applications: apps, savedJobs }); setConfirmation('import') } } catch { setImportError('The browser backup could not be read. It has been left untouched.') } }}>Import browser data</Button></div>}
         {importError && <p className="import-error" role="alert">{importError}</p>}
         <div className="data-action"><div><h3>Reset demo data</h3><p>Replace your applications with a fresh set of sample opportunities.</p></div><Button variant="secondary" size="sm" onClick={() => setConfirmation('reset')}><RotateCcw size={15} />Reset demo</Button></div>
         <div className="data-action danger-zone"><div><h3>Clear all applications</h3><p>Permanently remove your applications. Your profile stays as it is.</p></div><Button variant="danger" size="sm" onClick={() => setConfirmation('clear')} disabled={!applications.length}><Trash2 size={15} />Clear data</Button></div>
       </section>
     </div><aside className="settings-aside"><div className="privacy-note"><ShieldCheck size={28} strokeWidth={1.4} /><h2>Saved to your account</h2><p>Your workspace is stored on the computer running Waypoint. Export a JSON backup to keep a copy.</p><span className="privacy-badge"><span />Your account · Your data</span></div><p className="settings-version">Waypoint · Version 2.0</p></aside></div>
-    {confirmation && <ConfirmDialog title={confirmation === 'clear' ? 'Clear all applications?' : confirmation === 'reset' ? 'Start fresh with demo data?' : 'Replace your applications?'} description={confirmation === 'import' ? `Your ${applications.length} current applications will be replaced with ${pendingImport?.length ?? 0} applications from this backup. Export your current data first if you want to keep it.` : confirmation === 'clear' ? `All ${applications.length} applications and their timelines will be permanently deleted. Export a backup first if you want to keep them.` : 'Your current applications will be replaced with realistic sample data. Export a backup first to keep your current applications.'} confirmLabel={confirmation === 'clear' ? 'Clear all applications' : confirmation === 'reset' ? 'Reset demo data' : 'Replace & import'} onClose={() => { setConfirmation(null); setPendingImport(null) }} error={serverError} onConfirm={confirm} danger={confirmation !== 'import'} />}
+    {confirmation && <ConfirmDialog title={confirmation === 'clear' ? 'Clear all applications?' : confirmation === 'reset' ? 'Start fresh with demo data?' : 'Replace your workspace?'} description={confirmation === 'import' ? `Your ${applications.length} applications and ${savedJobs.length} saved jobs will be replaced with ${pendingImport?.applications.length ?? 0} applications and ${pendingImport?.savedJobs.length ?? 0} saved jobs from this backup. Export your current data first if you want to keep it.` : confirmation === 'clear' ? `All ${applications.length} applications and their timelines will be permanently deleted. Saved jobs remain. Export a backup first if you want to keep them.` : 'Your current applications will be replaced with realistic sample data. Saved jobs remain. Export a backup first to keep your current applications.'} confirmLabel={confirmation === 'clear' ? 'Clear all applications' : confirmation === 'reset' ? 'Reset demo data' : 'Replace & import'} onClose={() => { setConfirmation(null); setPendingImport(null) }} error={serverError} onConfirm={confirm} danger={confirmation !== 'import'} />}
   </>
 }

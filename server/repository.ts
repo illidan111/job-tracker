@@ -1,16 +1,17 @@
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync, SQLInputValue } from 'node:sqlite'
 import { z } from 'zod/v4'
-import type { Application, ApplicationInput, ContactInput, InterviewInput, Notification, Profile, Status, TimelineEvent, Workspace } from '../src/types/application'
-import { applicationSchema, contactSchema, interviewSchema, profileSchema } from '../src/validation/application'
+import type { Application, ApplicationInput, ContactInput, InterviewInput, Notification, Profile, SavedJob, SavedJobInput, Status, TimelineEvent, Workspace } from '../src/types/application'
+import { applicationSchema, contactSchema, interviewSchema, profileSchema, savedJobSchema } from '../src/validation/application'
 import { dateKey } from '../src/utils/dates'
 import { ApiError } from './errors'
 import { transaction } from './database'
 
 const now = () => new Date().toISOString()
-const baseKeys = ['company', 'position', 'location', 'salary', 'employmentType', 'workMode', 'status', 'dateApplied', 'jobUrl', 'notes', 'followUpDate'] as const
+const baseKeys = ['company', 'position', 'location', 'salary', 'employmentType', 'workMode', 'status', 'dateApplied', 'jobUrl', 'source', 'deadline', 'notes', 'followUpDate', 'followUpReason', 'followUpNote'] as const
 const contactKeys = ['name', 'email', 'company', 'role', 'linkedInUrl', 'notes'] as const
-const interviewKeys = ['scheduledAt', 'type', 'interviewer', 'meetingUrl', 'notes', 'outcome'] as const
+const interviewKeys = ['scheduledAt', 'type', 'interviewer', 'meetingUrl', 'notes', 'outcome', 'round', 'location'] as const
+const savedKeys = ['company', 'position', 'location', 'jobUrl', 'salary', 'source', 'deadline', 'notes'] as const
 const timelineSchema = applicationSchema.shape.timeline.unwrap().element
 const notificationSchema = z.object({ id: z.string(), applicationId: z.string(), kind: z.enum(['interview', 'followup']), title: z.string(), message: z.string(), dueAt: z.string(), readAt: z.string().nullable() })
 
@@ -101,7 +102,7 @@ export class Repository {
     if (input.interviewDate !== (before?.interviewDate ?? '')) {
       const current = before?.interviews.find(item => item.outcome === 'Scheduled')
       if (current) this.db.prepare('UPDATE interviews SET scheduledAt=?,outcome=?,updatedAt=? WHERE userId=? AND applicationId=? AND id=?').run(input.interviewDate || current.scheduledAt, input.interviewDate ? 'Scheduled' : 'Cancelled', now(), userId, id, current.id)
-      else if (input.interviewDate) this.insertInterview(userId, id, { scheduledAt: input.interviewDate, type: 'Video', interviewer: input.recruiter, meetingUrl: '', notes: '', outcome: 'Scheduled' })
+      else if (input.interviewDate) this.insertInterview(userId, id, { scheduledAt: input.interviewDate, type: 'Video', interviewer: input.recruiter, meetingUrl: '', notes: '', outcome: 'Scheduled', round: '', location: '' })
       this.event(userId, id, input.interviewDate ? 'interview_scheduled' : 'interview_cancelled', input.interviewDate ? 'Interview scheduled' : 'Interview cancelled')
     }
   }
@@ -149,12 +150,87 @@ export class Repository {
   remove(userId: string, id: string, version: number) {
     transaction(this.db, () => { this.check(userId, id, version); this.db.prepare('DELETE FROM applications WHERE userId=? AND id=?').run(userId, id) })
   }
-  followUp(userId: string, id: string, version: number, date: string, complete: boolean) {
+  savedJobs(userId: string): SavedJob[] {
+    return this.db.prepare('SELECT * FROM saved_jobs WHERE userId=? ORDER BY createdAt DESC').all(userId).map(row => savedJobSchema.parse({ ...row, salary: row.salary ?? undefined }))
+  }
+  private savedJob(userId: string, id: string) {
+    const row = this.db.prepare('SELECT * FROM saved_jobs WHERE userId=? AND id=?').get(userId, id)
+    if (!row) throw new ApiError(404, 'This saved job is no longer available.')
+    return savedJobSchema.parse({ ...row, salary: row.salary ?? undefined })
+  }
+  private checkSaved(userId: string, id: string, version: number) {
+    const job = this.savedJob(userId, id)
+    if (job.version !== version) throw new ApiError(409, 'This saved job changed in another window. Refresh and try again.')
+    return job
+  }
+  createSavedJob(userId: string, input: SavedJobInput) {
+    if (Number(this.db.prepare('SELECT COUNT(*) AS n FROM saved_jobs WHERE userId=?').get(userId)?.n) >= 10000) throw new ApiError(422, 'Your saved jobs have reached the 10,000 job limit.')
+    const id = randomUUID(), time = now()
+    this.insert('saved_jobs', { id, userId, ...Object.fromEntries(savedKeys.map(key => [key, input[key] ?? null])), version: 1, createdAt: time, updatedAt: time })
+    return this.savedJob(userId, id)
+  }
+  updateSavedJob(userId: string, id: string, version: number, input: SavedJobInput) {
+    transaction(this.db, () => {
+      this.checkSaved(userId, id, version)
+      this.db.prepare(`UPDATE saved_jobs SET ${savedKeys.map(key => `${key}=?`).join(',')},version=version+1,updatedAt=? WHERE userId=? AND id=?`).run(...savedKeys.map(key => input[key] ?? null), now(), userId, id)
+    })
+    return this.savedJob(userId, id)
+  }
+  removeSavedJob(userId: string, id: string, version: number) {
+    transaction(this.db, () => { this.checkSaved(userId, id, version); this.db.prepare('DELETE FROM saved_jobs WHERE userId=? AND id=?').run(userId, id) })
+  }
+  applySavedJob(userId: string, id: string, version: number, dateApplied: string) {
+    const applicationId = transaction(this.db, () => {
+      const job = this.checkSaved(userId, id, version)
+      if (Number(this.db.prepare('SELECT COUNT(*) AS n FROM applications WHERE userId=?').get(userId)?.n) >= 10000) throw new ApiError(422, 'Your workspace has reached the 10,000 application limit.')
+      const applicationId = this.insertApplication(userId, {
+        company: job.company, position: job.position, location: job.location, salary: job.salary,
+        employmentType: 'Full-time', workMode: 'Not specified', status: 'APPLIED', dateApplied,
+        jobUrl: job.jobUrl, source: job.source, deadline: job.deadline, notes: job.notes,
+        recruiter: '', recruiterEmail: '', interviewDate: '', tags: [], followUpDate: '', followUpReason: '', followUpNote: '',
+      })
+      this.event(userId, applicationId, 'created', 'Applied to saved job', 'APPLIED')
+      this.db.prepare('DELETE FROM saved_jobs WHERE userId=? AND id=?').run(userId, id)
+      return applicationId
+    })
+    return this.application(userId, applicationId)
+  }
+  bulk(userId: string, items: { id: string; version: number }[], action: 'status' | 'addTag' | 'removeTag' | 'archive' | 'restore' | 'delete', value?: string) {
+    transaction(this.db, () => {
+      for (const item of items) this.check(userId, item.id, item.version)
+      for (const item of items) {
+        if (action === 'delete') { this.db.prepare('DELETE FROM applications WHERE userId=? AND id=?').run(userId, item.id); continue }
+        if (action === 'status') {
+          const previous = this.db.prepare('SELECT status FROM applications WHERE userId=? AND id=?').get(userId, item.id)
+          if (previous?.status === value) continue
+          this.db.prepare('UPDATE applications SET status=? WHERE userId=? AND id=?').run(value!, userId, item.id)
+          this.event(userId, item.id, 'status', `Moved to ${value?.toLowerCase()}`, value as Status)
+        } else if (action === 'addTag' || action === 'removeTag') {
+          const app = this.application(userId, item.id)
+          const hasTag = app.tags.some(tag => tag.toLowerCase() === value!.toLowerCase())
+          if ((action === 'addTag' && hasTag) || (action === 'removeTag' && !hasTag)) continue
+          const tags = action === 'addTag' ? [...app.tags, value!] : app.tags.filter(tag => tag.toLowerCase() !== value!.toLowerCase())
+          if (tags.length > 10) throw new ApiError(422, 'An application can have up to 10 tags.')
+          this.tags(userId, item.id, tags)
+          this.event(userId, item.id, 'updated', action === 'addTag' ? `Tag added: ${value}` : `Tag removed: ${value}`)
+        } else {
+          const alreadyArchived = Boolean(this.db.prepare('SELECT archivedAt FROM applications WHERE userId=? AND id=?').get(userId, item.id)?.archivedAt)
+          if ((action === 'archive' && alreadyArchived) || (action === 'restore' && !alreadyArchived)) continue
+          const archivedAt = action === 'archive' ? now() : ''
+          this.db.prepare('UPDATE applications SET archivedAt=? WHERE userId=? AND id=?').run(archivedAt, userId, item.id)
+          this.event(userId, item.id, 'updated', action === 'archive' ? 'Application archived' : 'Application restored')
+        }
+        this.touch(userId, item.id)
+      }
+    })
+    return this.workspace(userId)
+  }
+  followUp(userId: string, id: string, version: number, date: string, complete: boolean, reason: string, note: string) {
     transaction(this.db, () => {
       this.check(userId, id, version)
       if (complete && !date) throw new ApiError(422, 'Set a follow-up date before marking it complete.')
-      this.db.prepare('UPDATE applications SET followUpDate=?,followUpCompletedAt=? WHERE userId=? AND id=?').run(date, complete ? now() : '', userId, id)
-      this.event(userId, id, complete ? 'followup_completed' : 'followup_scheduled', complete ? 'Follow-up completed' : date ? `Follow-up scheduled for ${date}` : 'Follow-up removed')
+      this.db.prepare('UPDATE applications SET followUpDate=?,followUpCompletedAt=?,followUpReason=?,followUpNote=? WHERE userId=? AND id=?').run(date, complete ? now() : '', reason, note, userId, id)
+      this.event(userId, id, complete ? 'followup_completed' : 'followup_scheduled', complete ? reason ? `Completed: ${reason}` : 'Follow-up completed' : date ? reason ? `${reason} · ${date}` : `Follow-up scheduled for ${date}` : 'Follow-up removed')
       this.touch(userId, id)
     })
     return this.application(userId, id)
@@ -238,18 +314,22 @@ export class Repository {
   }
   workspace(userId: string): Workspace {
     const profile = this.profile(userId), applications = this.applications(userId)
-    return { user: { id: userId, email: profile.email }, profile, applications, contacts: this.contacts(userId), notifications: this.notifications(userId, applications, profile.interviewReminders) }
+    return { user: { id: userId, email: profile.email }, profile, applications, savedJobs: this.savedJobs(userId), contacts: this.contacts(userId), notifications: this.notifications(userId, applications.filter(app => !app.archivedAt), profile.interviewReminders) }
   }
-  replace(userId: string, applications: Application[]) {
+  replace(userId: string, applications: Application[], savedJobs?: SavedJob[]) {
     // Validate shared contact consistency before deleting anything; all writes are atomic.
     const contactMap = new Map<string, { id: string; source: string }>()
     transaction(this.db, () => {
+      if (savedJobs) {
+        this.db.prepare('DELETE FROM saved_jobs WHERE userId=?').run(userId)
+        for (const job of savedJobs) this.insert('saved_jobs', { id: randomUUID(), userId, ...Object.fromEntries(savedKeys.map(key => [key, job[key] ?? null])), version: 1, createdAt: job.createdAt, updatedAt: job.updatedAt })
+      }
       this.db.prepare('DELETE FROM applications WHERE userId=?').run(userId)
       this.db.prepare('DELETE FROM contacts WHERE userId=?').run(userId)
       this.db.prepare('DELETE FROM tags WHERE userId=?').run(userId)
       for (const source of applications) {
         const id = this.insertApplication(userId, source, randomUUID(), source.createdAt)
-        this.db.prepare('UPDATE applications SET updatedAt=?,followUpCompletedAt=? WHERE userId=? AND id=?').run(source.updatedAt, source.followUpCompletedAt, userId, id)
+        this.db.prepare('UPDATE applications SET updatedAt=?,followUpCompletedAt=?,archivedAt=? WHERE userId=? AND id=?').run(source.updatedAt, source.followUpCompletedAt, source.archivedAt, userId, id)
         if (source.contacts.length) for (const contact of source.contacts) {
           const input = Object.fromEntries(contactKeys.map(key => [key, contact[key]])) as ContactInput
           const fingerprint = JSON.stringify(input), existing = contactMap.get(contact.id)

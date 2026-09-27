@@ -10,7 +10,7 @@ const application = createDemoApplications()[0]
 const workspace: Workspace = {
   user: { id: 'owner', email: 'owner@example.test' },
   profile: { name: 'Owner', email: 'owner@example.test', headline: '', weeklyGoal: 8, appearance: 'system', interviewReminders: true },
-  applications: [application], contacts: [], notifications: [],
+  applications: [application], savedJobs: [], contacts: [], notifications: [],
 }
 
 beforeEach(() => {

@@ -1,5 +1,5 @@
 import { z } from 'zod/v4'
-import { EMPLOYMENT_TYPES, EVENT_TYPES, INTERVIEW_OUTCOMES, INTERVIEW_TYPES, STATUSES, WORK_MODES } from '../types/application'
+import { APPLICATION_SOURCES, EMPLOYMENT_TYPES, EVENT_TYPES, INTERVIEW_OUTCOMES, INTERVIEW_TYPES, STATUSES, WORK_MODES } from '../types/application'
 
 export const validDate = (value: string) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
@@ -34,6 +34,8 @@ export const interviewInputSchema = z.object({
   meetingUrl: optionalUrl,
   notes: z.string().max(10000),
   outcome: z.enum(INTERVIEW_OUTCOMES),
+  round: z.string().trim().max(80).default(''),
+  location: z.string().trim().max(200).default(''),
 })
 export const interviewSchema = interviewInputSchema.extend({ id: z.string().min(1).max(100), createdAt: isoDate, updatedAt: isoDate })
 
@@ -45,6 +47,10 @@ const fields = {
   status: z.enum(STATUSES),
   dateApplied: dateSchema,
   jobUrl: optionalUrl,
+  source: z.union([z.literal(''), z.enum(APPLICATION_SOURCES)]),
+  deadline: optionalDate,
+  followUpReason: z.string().trim().max(120),
+  followUpNote: z.string().trim().max(1000),
   recruiter: z.string().trim().max(100),
   recruiterEmail: optionalEmail,
   interviewDate,
@@ -62,6 +68,10 @@ export type ApplicationFormValues = z.infer<typeof applicationFormSchema>
 
 export const applicationSchema = z.object({
   ...fields,
+  source: fields.source.default(''),
+  deadline: fields.deadline.default(''),
+  followUpReason: fields.followUpReason.default(''),
+  followUpNote: fields.followUpNote.default(''),
   id: z.string().min(1).max(100),
   location: fields.location.default(''),
   salary: z.number().finite().min(0).max(100000000).optional(),
@@ -77,6 +87,7 @@ export const applicationSchema = z.object({
   workMode: z.enum(WORK_MODES).default('Not specified'),
   followUpDate: optionalDate.default(''),
   followUpCompletedAt: z.union([z.literal(''), isoDate]).default(''),
+  archivedAt: z.union([z.literal(''), isoDate]).default(''),
   contacts: z.array(contactSchema).max(30).default([]),
   interviews: z.array(interviewSchema).max(100).default([]),
   timeline: z.array(z.object({
@@ -87,8 +98,20 @@ export const applicationSchema = z.object({
 })
 
 export const applicationInputSchema = applicationSchema.omit({
-  id: true, createdAt: true, updatedAt: true, timeline: true, version: true, contacts: true, interviews: true, followUpCompletedAt: true,
+  id: true, createdAt: true, updatedAt: true, timeline: true, version: true, contacts: true, interviews: true, followUpCompletedAt: true, archivedAt: true,
 })
+
+export const savedJobInputSchema = z.object({
+  company: fields.company,
+  position: fields.position,
+  location: fields.location.default(''),
+  jobUrl: optionalUrl.default(''),
+  salary: z.number().finite().min(0).max(100000000).optional(),
+  source: fields.source.default(''),
+  deadline: optionalDate.default(''),
+  notes: fields.notes.default(''),
+})
+export const savedJobSchema = savedJobInputSchema.extend({ id: z.string(), version: z.number().int().positive(), createdAt: isoDate, updatedAt: isoDate })
 
 export const applicationsSchema = z.array(applicationSchema).max(10000).refine(
   apps => new Set(apps.map(app => app.id)).size === apps.length,

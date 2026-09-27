@@ -6,6 +6,8 @@ export const WORK_MODES = ['Not specified', 'Remote', 'Hybrid', 'Onsite'] as con
 export type WorkMode = (typeof WORK_MODES)[number]
 export const INTERVIEW_TYPES = ['Phone', 'Video', 'Technical', 'Behavioral', 'Onsite'] as const
 export const INTERVIEW_OUTCOMES = ['Scheduled', 'Completed', 'Next round', 'Not moving forward', 'Cancelled'] as const
+export const APPLICATION_SOURCES = ['LinkedIn', 'Company website', 'Referral', 'Job board', 'Recruiter', 'Other'] as const
+export type ApplicationSource = (typeof APPLICATION_SOURCES)[number] | ''
 export const EVENT_TYPES = ['created', 'updated', 'status', 'contact', 'interview_scheduled', 'interview_updated', 'interview_completed', 'interview_cancelled', 'interview_deleted', 'followup_scheduled', 'followup_completed'] as const
 
 export interface Contact {
@@ -30,6 +32,8 @@ export interface Interview {
   meetingUrl: string
   notes: string
   outcome: (typeof INTERVIEW_OUTCOMES)[number]
+  round: string
+  location: string
   createdAt: string
   updatedAt: string
 }
@@ -50,6 +54,7 @@ export interface Workspace {
   user: AuthUser
   profile: Profile
   applications: Application[]
+  savedJobs: SavedJob[]
   contacts: Contact[]
   notifications: Notification[]
 }
@@ -72,6 +77,11 @@ export interface Application {
   status: Status
   dateApplied: string
   jobUrl: string
+  source: ApplicationSource
+  deadline: string
+  archivedAt: string
+  followUpReason: string
+  followUpNote: string
   recruiter: string
   recruiterEmail: string
   interviewDate: string
@@ -88,7 +98,23 @@ export interface Application {
   interviews: Interview[]
 }
 
-export type ApplicationInput = Omit<Application, 'id' | 'createdAt' | 'updatedAt' | 'timeline' | 'version' | 'contacts' | 'interviews' | 'followUpCompletedAt'>
+export type ApplicationInput = Omit<Application, 'id' | 'createdAt' | 'updatedAt' | 'timeline' | 'version' | 'contacts' | 'interviews' | 'followUpCompletedAt' | 'archivedAt'>
+
+export interface SavedJob {
+  id: string
+  company: string
+  position: string
+  location: string
+  jobUrl: string
+  salary?: number
+  source: ApplicationSource
+  deadline: string
+  notes: string
+  version: number
+  createdAt: string
+  updatedAt: string
+}
+export type SavedJobInput = Omit<SavedJob, 'id' | 'version' | 'createdAt' | 'updatedAt'>
 
 export interface Profile {
   name: string

@@ -16,13 +16,14 @@ SQLite was selected for a reproducible local setup with no service account, Dock
 
 ## Relational model
 
-`server/migrations/001_initial.sql` is the schema source. Migrations are tracked in the `migrations` table and applied atomically on startup; `npm run db:migrate` also runs them explicitly.
+`server/migrations/001_initial.sql` and `002_job_search_workflow.sql` are the schema sources. Migrations are tracked in the `migrations` table and applied atomically on startup; `npm run db:migrate` also runs them explicitly. Migration 002 adds new columns with safe defaults, retaining existing application and interview rows.
 
 | Table | Purpose and relationships |
 | --- | --- |
 | `users` | Unique case-insensitive email, password hash, profile and preferences |
 | `sessions` | Hashed opaque token, user foreign key, absolute expiry |
 | `applications` | User-owned opportunity, status, work arrangement, follow-up and revision |
+| `saved_jobs` | User-owned opportunities not yet applied to; versioned and converted in one transaction |
 | `tags` / `application_tags` | Per-user tag vocabulary and application links |
 | `contacts` / `application_contacts` | Reusable user-owned contacts and links |
 | `interviews` | Many dated conversations per application with type, URL, notes and outcome |
@@ -39,6 +40,8 @@ Composite foreign keys include `userId` for application/contact relations. A cro
 - Mutation controls are serialized in the workspace store. Background refreshes are skipped while saving. An epoch guard prevents an old request from restoring private data after logout or account changes.
 - The authenticated workspace refreshes on window focus and every 60 seconds while visible. This is lightweight polling, not real-time collaboration.
 - Import validates the entire input on both sides, then replaces records in one transaction. New IDs are assigned to imported entities; shared contact references are remapped consistently. Conflicting versions of the same contact cause a rollback. All prior data remains intact on validation or transaction failure.
+- Bulk actions validate every selected application and version before any change; an invalid or foreign-owned ID rolls the entire action back. Archiving keeps the application and timeline, while the active board and reminder generator omit it.
+- Version 3 workspace backups include saved jobs. Older formats remain readable. Import can replace both collections together; demo reset and clear affect applications only.
 
 ## Authentication and security boundaries
 
@@ -56,6 +59,7 @@ Implementation references: [Node SQLite](https://nodejs.org/download/release/lat
 - Application/follow-up dates are calendar dates. Event and interview timestamps are ISO UTC and displayed in the browser's timezone. Due follow-ups use the server's current calendar date, matching the local installation's clock.
 - Salary is annual USD, with no currency conversion implied.
 - Conversion counts opportunities with a non-cancelled interview, a retained completed-interview event, or an interview/offer stage in their recorded history; offers imply an interview. Deleting a completed interview does not erase its historical conversion while its event is retained. Rejection rate describes current rejected status, while active excludes offers and rejections. Empty workspaces show no conversion percentage. Weekly goals count Monday through today in the browser's local calendar; monthly progress excludes future dates.
+- The saved count is the current wishlist, not a historical conversion denominator. First recorded response timing uses the first non-applied status event on or after the application date; records without such an event are excluded and no average is shown when none qualify. Source percentages use all applications, including archived historical records.
 - Upcoming interviews are individual scheduled conversations, including multiple interviews for the same application. Outcomes, cancellations, and deletion remove irrelevant reminders.
 - Interview reminders cover the next 48 hours (and one hour after the start); follow-ups include due/overdue incomplete dates. Reminders are generated on workspace reads and retain read state while relevant. They are in-app reminders, not emails or push notifications.
 - Timeline retention is the latest 1,000 events per application. The workspace supports up to 10,000 applications, 100 interviews and 30 linked contacts per application, with imports capped at 5 MB. The application table paginates client-side; large-scale multi-tenant loading is outside this local product's scope.

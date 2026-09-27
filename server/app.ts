@@ -7,7 +7,7 @@ import { Authentication, loginSchema, signupSchema } from './auth'
 import type { AuthOptions } from './auth'
 import { Repository } from './repository'
 import { ApiError } from './errors'
-import { applicationInputSchema, applicationsSchema, contactInputSchema, interviewInputSchema, optionalDate, profileSchema } from '../src/validation/application'
+import { applicationInputSchema, applicationsSchema, contactInputSchema, dateSchema, interviewInputSchema, optionalDate, profileSchema, savedJobInputSchema, savedJobSchema } from '../src/validation/application'
 import { STATUSES } from '../src/types/application'
 import { createDemoApplications } from '../src/data/demo'
 
@@ -48,6 +48,25 @@ export function createApp(db: DatabaseSync, options: AuthOptions & { origin: str
   app.post('/api/auth/logout', (request, response) => { auth.logout(request, response); response.status(204).end() })
   app.use('/api', (request, response, next) => { response.locals.userId = auth.requireUser(request).id; next() })
   app.get('/api/workspace', (_request, response) => response.json(repo.workspace(response.locals.userId)))
+  app.get('/api/saved-jobs', (_request, response) => response.json(repo.savedJobs(response.locals.userId)))
+  app.post('/api/saved-jobs', (request, response) => response.status(201).json(repo.createSavedJob(response.locals.userId, savedJobInputSchema.parse(request.body))))
+  app.put('/api/saved-jobs/:id', (request, response) => response.json(repo.updateSavedJob(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version, savedJobInputSchema.parse(request.body))))
+  app.delete('/api/saved-jobs/:id', (request, response) => { repo.removeSavedJob(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version); response.status(204).end() })
+  app.post('/api/saved-jobs/:id/apply', (request, response) => {
+    const input = versionSchema.extend({ dateApplied: dateSchema }).parse(request.body)
+    response.status(201).json(repo.applySavedJob(response.locals.userId, String(request.params.id), input.version, input.dateApplied))
+  })
+  app.post('/api/applications/bulk', (request, response) => {
+    const input = z.object({
+      items: z.array(z.object({ id: z.string().min(1).max(100), version: z.number().int().positive() })).min(1).max(100).refine(items => new Set(items.map(item => item.id)).size === items.length, 'Select each application only once'),
+      action: z.enum(['status', 'addTag', 'removeTag', 'archive', 'restore', 'delete']),
+      value: z.string().trim().max(100).optional(),
+    }).superRefine((item, context) => {
+      if (item.action === 'status' && !STATUSES.includes(item.value as typeof STATUSES[number])) context.addIssue({ code: 'custom', message: 'Choose a valid status' })
+      if (['addTag', 'removeTag'].includes(item.action) && !item.value) context.addIssue({ code: 'custom', message: 'Enter a tag' })
+    }).parse(request.body)
+    response.json(repo.bulk(response.locals.userId, input.items, input.action, input.value))
+  })
   app.post('/api/applications', (request, response) => response.status(201).json(repo.create(response.locals.userId, applicationInputSchema.parse(request.body))))
   app.get('/api/applications/:id', (request, response) => response.json(repo.application(response.locals.userId, String(request.params.id))))
   app.put('/api/applications/:id', (request, response) => response.json(repo.update(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version, applicationInputSchema.parse(request.body))))
@@ -57,8 +76,8 @@ export function createApp(db: DatabaseSync, options: AuthOptions & { origin: str
     response.json(repo.status(response.locals.userId, String(request.params.id), input.version, input.status))
   })
   app.patch('/api/applications/:id/follow-up', (request, response) => {
-    const input = versionSchema.extend({ date: optionalDate, complete: z.boolean() }).parse(request.body)
-    response.json(repo.followUp(response.locals.userId, String(request.params.id), input.version, input.date, input.complete))
+    const input = versionSchema.extend({ date: optionalDate, complete: z.boolean(), reason: z.string().trim().max(120).default(''), note: z.string().trim().max(1000).default('') }).parse(request.body)
+    response.json(repo.followUp(response.locals.userId, String(request.params.id), input.version, input.date, input.complete, input.reason, input.note))
   })
   app.post('/api/applications/:id/interviews', (request, response) => response.status(201).json(repo.interview(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version, interviewInputSchema.parse(request.body))))
   app.put('/api/applications/:id/interviews/:interviewId', (request, response) => response.json(repo.interview(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version, interviewInputSchema.parse(request.body), String(request.params.interviewId))))
@@ -73,7 +92,7 @@ export function createApp(db: DatabaseSync, options: AuthOptions & { origin: str
   app.patch('/api/profile', (request, response) => { repo.updateProfile(response.locals.userId, profileSchema.omit({ email: true }).parse(request.body)); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/notifications/read-all', (_request, response) => { repo.readNotification(response.locals.userId); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/notifications/:id/read', (request, response) => { repo.readNotification(response.locals.userId, String(request.params.id)); response.json(repo.workspace(response.locals.userId)) })
-  app.post('/api/workspace/import', (request, response) => { repo.replace(response.locals.userId, z.object({ applications: applicationsSchema }).parse(request.body).applications); response.json(repo.workspace(response.locals.userId)) })
+  app.post('/api/workspace/import', (request, response) => { const input = z.object({ applications: applicationsSchema, savedJobs: z.array(savedJobSchema).max(10000).optional() }).parse(request.body); if (input.savedJobs && new Set(input.savedJobs.map(job => job.id)).size !== input.savedJobs.length) throw new ApiError(422, 'Saved job IDs must be unique.'); repo.replace(response.locals.userId, input.applications, input.savedJobs); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/workspace/demo', (_request, response) => { repo.replace(response.locals.userId, createDemoApplications()); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/workspace/clear', (_request, response) => { repo.replace(response.locals.userId, []); response.json(repo.workspace(response.locals.userId)) })
   app.use('/api', (_request, _response, next) => next(new ApiError(404, 'This endpoint does not exist.')))

@@ -54,12 +54,15 @@ Nothing is deployed by these commands.
 - **Accounts:** sign up, sign in/out, persistent server sessions, profile, weekly goal, light/dark/system themes. Each account has its own applications and related records.
 - **Overview:** active pipeline, actual conversion metrics, activity over time, recent applications/activity, upcoming individual interviews and follow-ups.
 - **Applications:** validated CRUD, notes, tags, work arrangement, salary, recruiter and interview shortcuts, searchable details, URL-based combined filters, sorting and table pagination.
+- **Saved jobs:** keep promising roles with a link, source, salary, deadline and notes; convert to an application with one action and no re-entry.
+- **Archive and bulk work:** select applications for status or tag changes, archive/restore, or confirmed deletion. Archived records remain searchable in the Archive view and out of the active board and reminders.
 - **Timeline:** status changes, contact updates, interview scheduling/outcomes/removal, and follow-up scheduling/completion recorded alongside each opportunity.
 - **Kanban:** immediate optimistic moves, database persistence, version conflicts, failure rollback, and keyboard-friendly status menus.
-- **Interviews:** multiple conversations per application with date/time, type, interviewer, meeting URL, notes, and outcome.
+- **Interviews:** multiple conversations per application with date/time, type, round, interviewer, location, meeting URL, notes, and outcome.
 - **Contacts:** reusable recruiters or teammates, shared across applications; edit once or unlink from an individual opportunity.
-- **Follow-ups and reminders:** lightweight dates and completion; due follow-ups and near-term interviews produce persistent read/unread notifications while using the app.
-- **Analytics:** real application activity, status distribution, interview/offer conversion, rejection rate, location and employment breakdowns.
+- **Follow-ups and reminders:** dates, reasons, notes, and completion; due follow-ups and near-term interviews produce persistent read/unread notifications while using the app.
+- **Analytics:** real application activity, status distribution, interview/offer conversion, rejection rate, source breakdown, and first recorded response timing. Records without a status response are excluded from that timing metric.
+- **Commands:** Ctrl/⌘ K opens the searchable command palette; N opens a new application and / focuses search outside text fields and dialogs.
 - **Data management:** JSON export/import, explicit browser-data migration, seed reset and clear actions, validation and atomic replacement.
 
 ## Architecture
@@ -87,7 +90,7 @@ tests/            Browser workflows, failures, responsive and axe checks
 docs/             Architecture, security boundaries and verification notes
 ```
 
-The database has users, sessions, applications, tags, interviews, contacts, timeline events, reminders and relation tables, with foreign keys, ownership constraints and indexes. Browser localStorage is no longer authoritative.
+The database has users, sessions, applications, saved jobs, tags, interviews, contacts, timeline events, reminders and relation tables, with foreign keys, ownership constraints and indexes. Browser localStorage is no longer authoritative.
 
 Read [architecture and security boundaries](docs/ARCHITECTURE.md) for ownership, concurrency, import semantics and tradeoffs.
 
@@ -98,8 +101,10 @@ All routes are under `/api`. The browser uses a same-origin, HttpOnly session co
 | Routes | Purpose |
 | --- | --- |
 | `POST /auth/signup`, `/auth/login`, `/auth/logout`; `GET /auth/session` | Account and session lifecycle |
-| `GET /workspace` | Current user's profile, applications, contacts and reminders |
+| `GET /workspace` | Current user's profile, applications, saved jobs, contacts and reminders |
+| `GET`, `POST /saved-jobs`; `PUT`, `DELETE /saved-jobs/:id`; `POST /saved-jobs/:id/apply` | Saved job lifecycle and atomic conversion |
 | `POST /applications`; `GET`, `PUT`, `DELETE /applications/:id` | Application CRUD, including notes and tags |
+| `POST /applications/bulk` | Atomic, version-checked status, tag, archive, restore or delete actions |
 | `PATCH /applications/:id/status`, `/applications/:id/follow-up` | Workflow and follow-up updates |
 | `POST /applications/:id/interviews`; `PUT`, `DELETE /applications/:id/interviews/:interviewId` | Interview scheduling and outcomes |
 | `POST /applications/:id/contacts`; `DELETE /applications/:id/contacts/:contactId`; `PUT /contacts/:id` | Shared contacts and application links |
@@ -121,7 +126,7 @@ Migrations run automatically on API startup and are safe to repeat. The seed com
 
 ## Backups and the earlier browser version
 
-Settings exports version 2 JSON with applications, tags, linked contacts, interviews, follow-ups and timeline history. Imports accept v1 legacy exports, v2 exports, or an application array. The entire file is validated before a confirmed replacement, then the server replaces only the current user's data inside a transaction. Malformed input or inconsistent shared contacts leave existing data unchanged. Imported IDs are regenerated and shared contact links remapped.
+Settings exports version 3 JSON with applications, saved jobs, tags, linked contacts, interviews, follow-ups and timeline history. Imports accept v1/v2/v3 exports or a legacy application array. The entire file is validated before a confirmed replacement, then the server replaces only the current user's data inside a transaction. Malformed input or inconsistent shared contacts leave existing data unchanged. Imported IDs are regenerated and shared contact links remapped. Legacy imports contain no saved jobs; the confirmation dialog shows both replacement counts. Reset demo and Clear applications leave saved jobs in place.
 
 Earlier `waypoint.workspace.v1` browser data is never silently associated with a new account. If that data exists, Settings offers **Import browser data**. It stays untouched in localStorage even after import.
 

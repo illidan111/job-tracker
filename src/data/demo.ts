@@ -43,12 +43,13 @@ export function createDemoApplications(): Application[] {
     const recruiter = ['Jamie Chen', 'Sarah Wilson', 'Aigerim Nur'][index === 0 ? 0 : index === 3 ? 1 : 2]
     const contacts: Application['contacts'] = status === 'INTERVIEW' ? [{ id: `${id}-contact`, name: recruiter, email: `recruiter${index + 1}@example.test`, company, role: 'Talent partner', linkedInUrl: '', notes: 'Ask about team priorities and the next steps in the process.', version: 1, createdAt, updatedAt }] : []
     const interviews: Application['interviews'] = status === 'INTERVIEW' ? [
-      ...(index === 0 ? [{ id: `${id}-screen`, scheduledAt: updatedAt, type: 'Phone' as const, interviewer: recruiter, meetingUrl: '', notes: 'Discussed product ownership and team structure. Moving on to the technical conversation.', outcome: 'Next round' as const, createdAt, updatedAt }] : []),
-      { id: `${id}-interview`, scheduledAt: interview.toISOString(), type: index === 0 ? 'Technical' : index === 3 ? 'Behavioral' : 'Video', interviewer: recruiter, meetingUrl: 'https://meet.example.test/waypoint-demo', notes: 'Prepare recent projects and questions for the team.', outcome: 'Scheduled', createdAt, updatedAt },
+      ...(index === 0 ? [{ id: `${id}-screen`, scheduledAt: updatedAt, type: 'Phone' as const, interviewer: recruiter, meetingUrl: '', notes: 'Discussed product ownership and team structure. Moving on to the technical conversation.', outcome: 'Next round' as const, round: 'Recruiter screen', location: '', createdAt, updatedAt }] : []),
+      { id: `${id}-interview`, scheduledAt: interview.toISOString(), type: index === 0 ? 'Technical' : index === 3 ? 'Behavioral' : 'Video', interviewer: recruiter, meetingUrl: 'https://meet.example.test/waypoint-demo', notes: 'Prepare recent projects and questions for the team.', outcome: 'Scheduled', round: 'Next round', location: '', createdAt, updatedAt },
     ] : []
     return {
       id, company, position, location, salary, status, dateApplied: daysAgo(days),
-      version: 1, workMode: location === 'Remote' ? 'Remote' : 'Hybrid',
+      version: 1, workMode: location === 'Remote' ? 'Remote' : 'Hybrid', source: index % 3 === 0 ? 'Referral' : index % 3 === 1 ? 'LinkedIn' : 'Company website', deadline: '', archivedAt: '',
+      followUpReason: index === 1 ? 'Check application status' : index === 5 ? 'Follow up with recruiter' : '', followUpNote: '',
       followUpDate: index === 1 ? daysAgo(-1) : index === 5 ? daysAgo(0) : '', followUpCompletedAt: '', contacts, interviews,
       employmentType: index === 9 || index === 21 ? 'Contract' : 'Full-time',
       jobUrl: `https://${company === 'Kaspi.kz' ? 'kaspi.kz' : company.toLowerCase().replace(/[^a-z]/g, '') + '.com'}`,

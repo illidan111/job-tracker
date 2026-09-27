@@ -1,5 +1,11 @@
 # Verification record
 
+## Job-search workflow expansion — 2026-09-27
+
+The migration from the previous database schema was exercised with an actual pre-migration application and interview; both records and their new default fields survived. API tests cover account isolation for saved jobs, version conflicts, atomic conversion, bulk ownership/rollback, archive restoration, and backup validation. A new browser journey covers saved job → application → contact/follow-up/interview → Kanban → analytics/filter → archive/restore → command palette → export/reload.
+
+The previous 33 unit/API tests remain in place. This pass has **38 unit/API tests**, including backup round-trips for version 3. TypeScript, ESLint, and the production build pass. The complete Edge browser suite has **40 passing scenarios**, including responsive and axe checks. The production smoke passes with the compiled UI, CSP, deep links, authenticated sessions and persistence across an API restart. `npm audit --omit=dev` reports zero known vulnerabilities. No deployment was performed.
+
 ## Engineering hardening — 2026-09-27
 
 See [Engineering audit](ENGINEERING_AUDIT.md) for the starting architecture, concrete findings and fixes. Checked with Node 24.14.0 on Windows and installed Microsoft Edge.
