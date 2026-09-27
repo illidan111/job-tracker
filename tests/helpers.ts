@@ -16,7 +16,7 @@ export async function workspace(page: Page): Promise<Workspace> {
 }
 export async function addApplication(page: Page, company = 'Aurora Labs') {
   await page.getByRole('button', { name: 'Add application', exact: true }).first().click()
-  const dialog = page.getByRole('dialog', { name: 'A new opportunity' })
+  const dialog = page.getByRole('dialog', { name: 'Add application' })
   await dialog.getByLabel('Company *', { exact: true }).fill(company)
   await dialog.getByLabel('Position *', { exact: true }).fill('Frontend Engineer')
   await dialog.getByRole('button', { name: 'Add application', exact: true }).click()

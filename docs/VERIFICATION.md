@@ -1,5 +1,7 @@
 # Verification record
 
+The subsequent 2026-09-27 interface refinement, review passes, and final verification results are recorded in [Design review](DESIGN_REVIEW.md). Screenshots below reflect that refinement.
+
 Checked on 2026-09-26 with Node 24.14.0 on Windows, using installed Microsoft Edge through Playwright. Tests use separate databases and accounts; the normal workspace is not used as a test fixture.
 
 ## Baseline and preserved behavior
@@ -37,6 +39,10 @@ The API suite independently exercises foreign-user reads and mutations, foreign 
 Layout checks cover **320, 375, 768, 1024, 1440 and 1920 px**, in both light and dark themes. Main pages, authentication screens and application/interview/contact dialogs are checked for accidental document or dialog horizontal overflow. Intentional Kanban scrolling stays inside its board.
 
 The axe checks cover WCAG 2 A/AA and 2.1 AA on all main pages, authentication screens and key dialogs at 375 and 1440 px in both themes. No violations remained in these automated checks. Normal browser flows were checked for page errors, and the visual tests also check console errors/warnings. These checks supplement, rather than replace, assistive-technology testing.
+
+An earlier visual pass caught a light-theme metadata contrast issue in a full Playwright run (32 of 35 checks passed). After the color fix, all four focused axe checks passed; the earlier dark-theme dialog timeout also passed on rerun.
+
+In the following presentation redesign, responsive and axe checks passed at all tested widths and themes. A full-row recent link changed its accessible name; 34 of 35 Playwright checks passed initially, and the complete failing workflow passed after giving that link the company name. The production restart smoke test passed again. See [the current four-iteration review](DESIGN_REVIEW.md) for the current before/after captures.
 
 Screenshots were visually inspected for hierarchy, spacing, density, contrast, mobile forms and theme consistency. Final adjustments corrected separator characters, upcoming-section spacing, a duplicate Remote label, and the date-only formatting of follow-up reminders. The final reminder adjustment received a focused browser workflow and accessibility rerun.
 

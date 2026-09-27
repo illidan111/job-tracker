@@ -100,9 +100,9 @@ export interface Profile {
 }
 
 export const STATUS_META: Record<Status, { label: string; color: string; className: string }> = {
-  APPLIED: { label: 'Applied', color: '#6481b8', className: 'applied' },
-  SCREENING: { label: 'Screening', color: '#bf944b', className: 'screening' },
-  INTERVIEW: { label: 'Interview', color: '#9280bc', className: 'interview' },
-  OFFER: { label: 'Offer', color: '#3b8969', className: 'offer' },
-  REJECTED: { label: 'Rejected', color: '#bd7b7b', className: 'rejected' },
+  APPLIED: { label: 'Applied', color: '#62899a', className: 'applied' },
+  SCREENING: { label: 'Screening', color: '#ac905d', className: 'screening' },
+  INTERVIEW: { label: 'Interview', color: '#917da2', className: 'interview' },
+  OFFER: { label: 'Offer', color: '#438a65', className: 'offer' },
+  REJECTED: { label: 'Rejected', color: '#b17d80', className: 'rejected' },
 }

@@ -34,7 +34,7 @@ test('a failed create keeps the draft and succeeds after retry', async ({ page }
   await page.goto('/applications')
   await page.route('**/api/applications', route => route.abort('failed'))
   await page.getByRole('button', { name: 'Add application', exact: true }).first().click()
-  const dialog = page.getByRole('dialog', { name: 'A new opportunity' })
+  const dialog = page.getByRole('dialog', { name: 'Add application' })
   await dialog.getByLabel('Company *', { exact: true }).fill('Retry Company')
   await dialog.getByLabel('Position *', { exact: true }).fill('Product Engineer')
   await dialog.getByRole('button', { name: 'Add application', exact: true }).click()
@@ -68,10 +68,10 @@ test('stale edits are rejected, keep the draft, and allow an explicit retry', as
 
 test('an expired session clears private state and offers sign-in', async ({ page }) => {
   await page.goto('/applications')
-  await expect(page.getByRole('heading', { name: 'Your applications' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Applications' })).toBeVisible()
   await page.context().clearCookies()
   await page.getByRole('button', { name: 'Add application', exact: true }).first().click()
-  const dialog = page.getByRole('dialog', { name: 'A new opportunity' })
+  const dialog = page.getByRole('dialog', { name: 'Add application' })
   await dialog.getByLabel('Company *', { exact: true }).fill('Expired Session')
   await dialog.getByLabel('Position *', { exact: true }).fill('Engineer')
   await dialog.getByRole('button', { name: 'Add application', exact: true }).click()

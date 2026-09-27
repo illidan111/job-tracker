@@ -42,28 +42,31 @@ export function ApplicationForm() {
     if (editor?.id && !application) return
     const saved = application ? await edit(application.id, input, version) : await add(input)
     if (!saved) { setVersion(useWorkspace.getState().applications.find(app => app.id === application?.id)?.version); return }
-    toast(application ? 'Application updated' : `${input.company} added to your journey`)
+    toast(application ? 'Application updated' : `${input.company} added`)
     closeEditor()
   }
   return <>
-    <Dialog title={application ? 'Edit application' : 'A new opportunity'} description={application ? 'Keep the details of your next move up to date.' : 'Every great next chapter starts with a first step.'} onClose={requestClose} className="application-dialog">
+    <Dialog title={application ? 'Edit application' : 'Add application'} onClose={requestClose} className="application-dialog">
       <form onSubmit={event => { void handleSubmit(onSubmit, errors => {
         if (['recruiter', 'recruiterEmail', 'interviewDate', 'notes', 'tags'].some(key => key in errors) && extraFields.current) extraFields.current.open = true
       })(event) }} noValidate>
         <div className="form-body">
           {serverError && <p className="form-error" role="alert">{serverError}</p>}
           {editor?.id && !application && <p className="form-error" role="alert">This application was deleted. Close this form to return to your workspace.</p>}
-          <div className="form-section-title"><BriefcaseBusiness size={17} /><h3>The essentials</h3><span>* Required</span></div>
+          <div className="form-section-title"><BriefcaseBusiness size={17} /><h3>Application</h3><span>* Required</span></div>
           <div className="form-grid">
             <Field label="Company *" error={errors.company?.message}>{props => <input {...props} {...register('company')} autoFocus placeholder="e.g. Linear" autoComplete="organization" />}</Field>
             <Field label="Position *" error={errors.position?.message}>{props => <input {...props} {...register('position')} placeholder="e.g. Frontend Engineer" />}</Field>
+            <Field label="Status" error={errors.status?.message}>{props => <select {...props} {...register('status')}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_META[status].label}</option>)}</select>}</Field>
+            <Field label="Date applied *" error={errors.dateApplied?.message}>{props => <input {...props} {...register('dateApplied')} type="date" />}</Field>
+          </div>
+          <h3 className="form-subheading">Role details</h3>
+          <div className="form-grid">
             <Field label="Location" error={errors.location?.message}>{props => <input {...props} {...register('location')} placeholder="City or Remote" />}</Field>
             <Field label="Work arrangement" error={errors.workMode?.message}>{props => <select {...props} {...register('workMode')}>{WORK_MODES.map(mode => <option key={mode}>{mode}</option>)}</select>}</Field>
             <Field label="Annual salary (USD)" error={errors.salary?.message}>{props => <input {...props} {...register('salary')} inputMode="decimal" placeholder="e.g. 120000" />}</Field>
             <Field label="Employment type" error={errors.employmentType?.message}>{props => <select {...props} {...register('employmentType')}>{EMPLOYMENT_TYPES.map(type => <option key={type}>{type}</option>)}</select>}</Field>
-            <Field label="Status" error={errors.status?.message}>{props => <select {...props} {...register('status')}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_META[status].label}</option>)}</select>}</Field>
-            <Field label="Date applied *" error={errors.dateApplied?.message}>{props => <input {...props} {...register('dateApplied')} type="date" />}</Field>
-            <Field label="Job URL" error={errors.jobUrl?.message}>{props => <input {...props} {...register('jobUrl')} type="url" placeholder="https://company.com/careers/…" />}</Field>
+            <Field label="Job URL" error={errors.jobUrl?.message} className="full-width">{props => <input {...props} {...register('jobUrl')} type="url" placeholder="https://company.com/careers/…" />}</Field>
           </div>
           <details ref={extraFields} className="form-details" open={Boolean(application)}>
             <summary>People, interviews & notes <ChevronDown size={16} /></summary>
@@ -73,7 +76,7 @@ export function ApplicationForm() {
               <Field label="Interview date & time" error={errors.interviewDate?.message} hint="In your current timezone.">{props => <input {...props} {...register('interviewDate')} type="datetime-local" />}</Field>
               <Field label="Tags" error={errors.tags?.message} hint="Separate tags with commas. Up to 10.">{props => <input {...props} {...register('tags')} placeholder="React, Remote, Dream role" />}</Field>
               <Field label="Follow up on" error={errors.followUpDate?.message}>{props => <input {...props} {...register('followUpDate')} type="date" />}</Field>
-              <Field label="Notes" error={errors.notes?.message} className="full-width">{props => <textarea {...props} {...register('notes')} rows={4} placeholder="What excites you about this role? Keep links, questions, and follow-up notes here." />}</Field>
+              <Field label="Notes" error={errors.notes?.message} className="full-width">{props => <textarea {...props} {...register('notes')} rows={4} placeholder="Notes, links, and questions…" />}</Field>
             </div>
           </details>
           {Object.keys(errors).length > 0 && <p className="field-error" role="alert">Please check the highlighted fields. Additional fields are under “People, interviews & notes”.</p>}
@@ -81,6 +84,6 @@ export function ApplicationForm() {
         <div className="dialog-actions"><Button type="button" variant="secondary" onClick={requestClose}>Cancel</Button><Button type="submit" disabled={isSubmitting}>{application ? <Save size={16} /> : <Plus size={17} />}{application ? 'Save changes' : 'Add application'}</Button></div>
       </form>
     </Dialog>
-    {discard && <ConfirmDialog title="Discard your changes?" description="Your unsaved changes will be lost. You can keep editing to save this opportunity." confirmLabel="Discard changes" onConfirm={closeEditor} onClose={() => setDiscard(false)} />}
+    {discard && <ConfirmDialog title="Discard your changes?" description="Your unsaved changes will be lost." confirmLabel="Discard changes" onConfirm={closeEditor} onClose={() => setDiscard(false)} />}
   </>
 }
