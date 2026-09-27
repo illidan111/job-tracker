@@ -9,6 +9,8 @@ import { openDatabase } from './database'
 import { hashToken } from './auth'
 import { createDemoApplications } from '../src/data/demo'
 import type { Application, SavedJob, Workspace } from '../src/types/application'
+import type { CareerBackup, Company, Task, CareerNote, Materials, Preparation } from '../src/domain/career'
+import type { ApplicationPage, Overview } from '../src/domain/overview'
 
 const origin = 'http://127.0.0.1:5173'
 let base = '', server: Server, db: DatabaseSync, directory = ''
@@ -37,6 +39,112 @@ beforeEach(async () => { expect((await alice.request('/workspace/clear', 'POST',
 afterAll(async () => { await new Promise<void>(resolve => server.close(() => resolve())); db.close(); rmSync(directory, { recursive: true, force: true }) })
 
 describe('authenticated database API', () => {
+  it('round trips the complete career backup and rolls back invalid relationships', async () => {
+    let app = await alice.create()
+    app = await (await alice.request(`/applications/${app.id}/interviews`, 'POST', { version: app.version, scheduledAt: new Date().toISOString(), type: 'Video', interviewer: '', meetingUrl: '', notes: '', outcome: 'Scheduled' })).json() as Application
+    await alice.request(`/companies/${app.companyId}`, 'PUT', { version: (await (await alice.request(`/companies/${app.companyId}`)).json() as { company: Company }).company.version, name: app.company, notes: 'Company research preserved' })
+    await alice.request('/tasks', 'POST', { title: 'Personal research' })
+    await alice.request('/tasks', 'POST', { title: 'Linked research', applicationId: app.id })
+    await alice.request(`/applications/${app.id}/notes`, 'POST', { body: 'Conversation preserved' })
+    await alice.request(`/applications/${app.id}/materials`, 'PUT', { version: 0, resumeVersion: 'Frontend v4', skills: ['SQL'] })
+    await alice.request(`/interviews/${app.interviews[0].id}/preparation`, 'PUT', { version: 0, topics: [{ title: 'SQL joins', done: true }], reflection: 'Positive' })
+    const response = await alice.request('/workspace/export')
+    expect(response.status).toBe(200)
+    const backup = await response.json() as { version: number; applications: Application[]; savedJobs: SavedJob[]; career: CareerBackup }
+    expect(backup.version).toBe(4)
+    expect(backup.career.notes[0].body).toBe('Conversation preserved')
+    const otherBefore = await (await bob.request('/workspace/export')).json() as typeof backup
+    const invalid = structuredClone(backup); invalid.career.tasks[0].applicationId = 'missing-app'
+    expect((await alice.request('/workspace/import', 'POST', invalid)).status).toBe(422)
+    const duplicate = structuredClone(backup); duplicate.applications[0].interviews.push(duplicate.applications[0].interviews[0])
+    expect((await alice.request('/workspace/import', 'POST', duplicate)).status).toBe(422)
+    expect((await alice.workspace()).applications[0].id).toBe(app.id)
+    expect((await alice.request('/workspace/import', 'POST', backup)).status).toBe(200)
+    const restored = await (await alice.request('/workspace/export')).json() as typeof backup
+    expect(restored.applications[0].id).not.toBe(app.id)
+    expect(restored.career.tasks.find(task => task.title === 'Linked research')?.applicationId).toBe(restored.applications[0].id)
+    expect(restored.career.tasks.find(task => task.title === 'Personal research')?.applicationId).toBeNull()
+    expect(restored.career.companies.find(company => company.id === restored.applications[0].companyId)?.notes).toBe('Company research preserved')
+    expect(restored.career.materials[0].resumeVersion).toBe('Frontend v4')
+    expect(restored.career.preparations[0]).toMatchObject({ interviewId: restored.applications[0].interviews[0].id, topics: [{ title: 'SQL joins', done: true }], reflection: 'Positive' })
+    const otherAfter = await (await bob.request('/workspace/export')).json() as typeof backup
+    expect(otherAfter.applications).toEqual(otherBefore.applications)
+    expect(otherAfter.career).toEqual(otherBefore.career)
+    expect(JSON.stringify(otherAfter)).not.toContain('Conversation preserved')
+  })
+  it('paginates beyond bootstrap and calculates full owner-scoped analytics', async () => {
+    const original = await alice.create()
+    const applications = Array.from({ length: 215 }, (_, index) => ({ ...original, id: `bulk-${index}`, company: `Scale ${String(index).padStart(3, '0')}`, status: index === 214 ? 'OFFER' : 'APPLIED', timeline: [], followUpDate: '2020-01-01' }))
+    expect((await alice.request('/workspace/import', 'POST', { applications })).status).toBe(200)
+    expect((await alice.workspace()).applications.length).toBeLessThanOrEqual(200)
+    expect((await alice.workspace()).notifications).toHaveLength(50)
+    const first = await (await alice.request('/applications?pageSize=10&sort=company')).json() as ApplicationPage
+    const last = await (await alice.request('/applications?page=22&pageSize=10&sort=company')).json() as ApplicationPage
+    expect(first.total).toBe(215); expect(first.items).toHaveLength(10); expect(last.items).toHaveLength(5)
+    expect(last.items.at(-1)?.company).toBe('Scale 214')
+    const search = await (await alice.request('/applications?q=Scale%20214')).json() as ApplicationPage
+    expect(search.total).toBe(1)
+    const summary = await (await alice.request('/overview')).json() as Overview
+    expect(summary.metrics.total).toBe(215); expect(summary.metrics.offers).toBe(1); expect(summary.activity.length).toBeLessThanOrEqual(5)
+    const second = await (await bob.request('/applications?q=Scale')).json() as ApplicationPage
+    expect(second.total).toBe(0)
+    expect(JSON.stringify(await (await bob.request('/overview')).json())).not.toContain('Scale')
+    expect((await alice.request('/applications?pageSize=10000')).status).toBe(422)
+  })
+  it('connects company research, tasks, notes, materials and interview preparation with ownership checks', async () => {
+    const first = await alice.create(), second = await alice.create()
+    expect(first.companyId).toBeTruthy()
+    expect(second.companyId).toBe(first.companyId)
+    const company = await (await alice.request(`/companies/${first.companyId}`)).json() as { company: Company; applications: { total: number } }
+    expect(company.applications.total).toBe(2)
+    expect((await bob.request(`/companies/${first.companyId}`)).status).toBe(404)
+    expect((await alice.request(`/companies/${first.companyId}`, 'PUT', { ...company.company, notes: 'Research the platform team' })).status).toBe(200)
+    const input = { title: 'Prepare system design', applicationId: first.id, dueDate: '2026-09-27', priority: 'HIGH', status: 'OPEN', description: 'Review tradeoffs' }
+    const requestId = crypto.randomUUID()
+    const task = await (await alice.request('/tasks', 'POST', { ...input, requestId })).json() as Task
+    expect(task.title).toBe(input.title)
+    expect((await (await alice.request('/tasks', 'POST', { ...input, requestId })).json() as Task).id).toBe(task.id)
+    expect((await bob.request(`/tasks/${task.id}`)).status).toBe(404)
+    expect((await bob.request('/tasks', 'POST', input)).status).toBe(404)
+    expect((await bob.request(`/tasks/${task.id}`, 'PUT', { ...task, status: 'COMPLETED' })).status).toBe(404)
+    const completed = await (await alice.request(`/tasks/${task.id}`, 'PUT', { ...task, status: 'COMPLETED' })).json() as Task
+    expect(completed.completedAt).toBeTruthy()
+    expect((await alice.request(`/tasks/${task.id}`, 'PUT', task)).status).toBe(409)
+    const note = await (await alice.request(`/applications/${first.id}/notes`, 'POST', { body: 'Recruiter explained the team scope' })).json() as CareerNote
+    expect(note.body).toContain('Recruiter')
+    expect((await bob.request(`/applications/${first.id}/notes`)).status).toBe(404)
+    expect((await bob.request(`/applications/${first.id}/notes/${note.id}`, 'DELETE', { version: note.version })).status).toBe(404)
+    const materialResponse = await alice.request(`/applications/${first.id}/materials`, 'PUT', { version: 0, jobDescription: 'Build reliable APIs', resumeVersion: 'Backend v3', skills: ['SQL', 'sql'], portfolioUrl: 'https://example.test/portfolio' })
+    expect(materialResponse.status).toBe(200)
+    const materials = await materialResponse.json() as Materials
+    expect(materials.skills).toHaveLength(1)
+    expect((await bob.request(`/applications/${first.id}/materials`)).status).toBe(404)
+    expect((await alice.request(`/applications/${first.id}/materials`, 'PUT', { ...materials, resumeUrl: 'javascript:alert(1)' })).status).toBe(422)
+    const latest = (await alice.workspace()).applications.find(app => app.id === first.id)!
+    const withInterview = await (await alice.request(`/applications/${first.id}/interviews`, 'POST', { version: latest.version, type: 'Technical', scheduledAt: '2026-09-28T10:00:00Z', interviewer: '', meetingUrl: '', notes: '', outcome: 'Scheduled' })).json() as Application
+    const interviewId = withInterview.interviews[0].id
+    const prepResponse = await alice.request(`/interviews/${interviewId}/preparation`, 'PUT', { version: 0, topics: [{ title: 'SQL joins', done: true }], questionsToAsk: 'How is on-call organized?', expectedQuestions: 'Explain indexes', reflection: 'Positive', reflectionNotes: 'Clear discussion' })
+    expect(prepResponse.status).toBe(200)
+    const preparation = await prepResponse.json() as Preparation
+    expect(preparation.topics[0].done).toBe(true)
+    expect((await bob.request(`/interviews/${interviewId}/preparation`)).status).toBe(404)
+    expect((await bob.request(`/interviews/${interviewId}/preparation`, 'PUT', preparation)).status).toBe(404)
+    const current = (await alice.workspace()).applications.find(app => app.id === first.id)!
+    expect(current.timeline.map(event => event.type)).toEqual(expect.arrayContaining(['task_created', 'task_completed', 'note_added', 'materials_updated', 'preparation_updated']))
+    const search = await (await alice.request('/search?q=tradeoffs')).json()
+    expect(search).toMatchObject([{ kind: 'Tasks', id: task.id }])
+    expect(await (await bob.request('/search?q=tradeoffs')).json()).toEqual([])
+  })
+  it('projects real dates into the agenda using the requested timezone and excludes completed tasks', async () => {
+    let app = await alice.create()
+    app = await (await alice.request(`/applications/${app.id}/interviews`, 'POST', { version: app.version, type: 'Video', scheduledAt: '2026-09-27T23:30:00Z', interviewer: '', meetingUrl: '', notes: '', outcome: 'Scheduled' })).json() as Application
+    const task = await (await alice.request('/tasks', 'POST', { title: 'Due yesterday', applicationId: app.id, dueDate: '2026-09-26' })).json() as Task
+    const agenda = await (await alice.request('/schedule?from=2026-09-28&to=2026-09-28&timezone=Asia%2FAlmaty&overdue=true')).json() as { items: { kind: string; day: string; id: string }[] }
+    expect(agenda.items).toEqual(expect.arrayContaining([expect.objectContaining({ kind: 'interview', day: '2026-09-28' }), expect.objectContaining({ id: task.id })]))
+    await alice.request(`/tasks/${task.id}`, 'PUT', { ...task, status: 'COMPLETED' })
+    const completed = await (await alice.request('/schedule?from=2026-09-28&to=2026-09-28&overdue=true')).json() as { items: { id: string }[] }
+    expect(completed.items.some(item => item.id === task.id)).toBe(false)
+  })
   it('saves a job, isolates it by account, and converts its details atomically', async () => {
     await alice.request('/workspace/import', 'POST', { applications: [], savedJobs: [] })
     const input = { company: 'Waypoint Labs', position: 'Staff Engineer', location: 'Remote', jobUrl: 'https://example.test/job', salary: 180000, source: 'Referral', deadline: '2026-12-01', notes: 'Ask about platform scope' }

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { BookmarkPlus, ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react'
 import type { SavedJob, SavedJobInput } from '../types/application'
 import { APPLICATION_SOURCES } from '../types/application'
@@ -13,6 +13,10 @@ import { CompanyMark } from '../components/CompanyMark'
 import { Dialog, ConfirmDialog } from '../components/ui/Dialog'
 import { Button } from '../components/ui/Button'
 import { EmptyState } from '../components/ui/EmptyState'
+import { useDebounced, useResource } from '../hooks/useResource'
+import type { PageResult } from '../domain/career'
+import { Pagination } from '../components/ui/Pagination'
+import { RemoteState } from '../components/ui/RemoteState'
 
 const blank: SavedJobInput = { company: '', position: '', location: '', jobUrl: '', salary: undefined, source: '', deadline: '', notes: '' }
 
@@ -49,19 +53,24 @@ function SavedJobForm({ job, onClose }: { job?: SavedJob; onClose: () => void })
 }
 
 export default function SavedJobs() {
-  const jobs = useWorkspace(state => state.savedJobs), pending = useWorkspace(state => state.pending), error = useWorkspace(state => state.storageError)
+  const [params, setParams] = useSearchParams()
+  const query = useResource<PageResult<SavedJob>>('/saved-jobs/page?' + useDebounced(params.toString()))
+  const jobs = query.data?.items ?? []
+  const pending = useWorkspace(state => state.pending), error = useWorkspace(state => state.storageError)
   const [editing, setEditing] = useState<SavedJob | 'new' | null>(null), [deleting, setDeleting] = useState<SavedJob | null>(null), [applying, setApplying] = useState<SavedJob | null>(null)
   const [appliedDate, setAppliedDate] = useState(dateKey())
   const navigate = useNavigate(), toast = useUI(state => state.toast)
   return <><PageHeading title="Saved jobs" action={<Button onClick={() => setEditing('new')}><Plus size={17} />Save job</Button>} />
     <p className="page-intro">Keep opportunities here until you apply. Your details move into the application automatically.</p>
+    <label className="career-search">Search saved jobs<input value={params.get('q') ?? ''} onChange={event => setParams({ q: event.target.value }, { replace: true })} /></label>
+    <RemoteState {...query} />{query.data && <Pagination result={query.data} onPage={page => setParams({ q: params.get('q') ?? '', page: String(page) })} />}
     {jobs.length ? <div className="saved-jobs-grid">{jobs.map(job => <article className="panel saved-job-card" key={job.id}>
       <div className="saved-job-heading"><CompanyMark company={job.company} /><div><h2>{job.company}</h2><p>{job.position}</p></div></div>
       <p className="saved-job-meta">{job.location || 'Location not specified'}{job.salary !== undefined ? ` · ${formatSalary(job.salary)} / year` : ''}</p>
       {job.source && <p className="saved-job-meta">Found via {job.source}</p>}{job.deadline && <p className={job.deadline <= dateKey() ? 'saved-job-meta deadline-due' : 'saved-job-meta'}>{job.deadline < dateKey() ? 'Deadline passed' : job.deadline === dateKey() ? 'Deadline today' : `Apply by ${formatDate(job.deadline)}`}</p>}<p className="saved-job-meta">Saved {formatDate(job.createdAt)}</p>
       {job.notes && <p className="saved-job-note">{job.notes}</p>}
       <div className="saved-job-actions"><Button size="sm" disabled={pending} onClick={() => { setApplying(job); setAppliedDate(dateKey()) }}>Mark applied</Button><button className="icon-button" aria-label={`Edit ${job.company} saved job`} onClick={() => setEditing(job)}><Pencil size={16} /></button>{job.jobUrl && <a className="icon-button" href={job.jobUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${job.company} job listing`}><ExternalLink size={16} /></a>}<button className="icon-button delete-button" aria-label={`Delete ${job.company} saved job`} onClick={() => setDeleting(job)}><Trash2 size={16} /></button></div>
-    </article>)}</div> : <EmptyState title="No saved jobs yet" description="Save a promising role now and turn it into an application when you apply." action={<Button onClick={() => setEditing('new')}><BookmarkPlus size={16} />Save a job</Button>} />}
+    </article>)}</div> : query.data && <EmptyState title="No saved jobs yet" description="Save a promising role now and turn it into an application when you apply." action={<Button onClick={() => setEditing('new')}><BookmarkPlus size={16} />Save a job</Button>} />}
     {editing && <SavedJobForm key={editing === 'new' ? 'new' : editing.id} job={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
     {applying && <Dialog title={`Applied to ${applying.company}?`} description="Choose the date you applied. The saved details will become an application." onClose={() => setApplying(null)} className="confirm-dialog"><form onSubmit={async event => { event.preventDefault(); if (!dateSchema.safeParse(appliedDate).success) return; if (await useWorkspace.getState().applySavedJob(applying.id, applying.version, appliedDate)) { const id = useWorkspace.getState().applications[0].id; toast('Application created from saved job'); setApplying(null); navigate(`/applications/${id}`) } }}><div className="form-body"><label>Date applied<input type="date" required value={appliedDate} onChange={event => setAppliedDate(event.target.value)} /></label>{error && <p className="form-error" role="alert">{error}</p>}</div><div className="dialog-actions"><Button type="button" variant="secondary" onClick={() => setApplying(null)} disabled={pending}>Cancel</Button><Button type="submit" disabled={pending || !dateSchema.safeParse(appliedDate).success}>Create application</Button></div></form></Dialog>}
     {deleting && <ConfirmDialog title={`Delete saved job at ${deleting.company}?`} description="This saved job will be removed. Existing applications are unaffected." confirmLabel="Delete saved job" error={error} onClose={() => setDeleting(null)} onConfirm={async () => { if (await useWorkspace.getState().deleteSavedJob(deleting.id, deleting.version)) { toast('Saved job deleted'); setDeleting(null) } }} />}

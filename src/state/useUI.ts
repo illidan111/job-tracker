@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import type { Status } from '../types/application'
 
 interface UIState {
+  recent: { href: string; label: string }[]
+  remember: (item: { href: string; label: string }) => void
   editor: { id?: string; status: Status } | null
   openEditor: (id?: string, status?: Status) => void
   closeEditor: () => void
@@ -11,6 +13,8 @@ interface UIState {
 }
 
 export const useUI = create<UIState>((set, get) => ({
+  recent: [],
+  remember: item => set(state => ({ recent: [item, ...state.recent.filter(entry => entry.href !== item.href)].slice(0, 6) })),
   editor: null,
   openEditor: (id, status = 'APPLIED') => set({ editor: { id, status } }),
   closeEditor: () => set({ editor: null }),

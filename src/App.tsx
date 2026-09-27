@@ -11,12 +11,23 @@ const Kanban = lazy(() => import('./pages/Kanban'))
 const Analytics = lazy(() => import('./pages/Analytics'))
 const Settings = lazy(() => import('./pages/Settings'))
 const ApplicationDetails = lazy(() => import('./pages/ApplicationDetails'))
+const Today = lazy(() => import('./pages/Today'))
+const Calendar = lazy(() => import('./pages/Calendar'))
+const Tasks = lazy(() => import('./pages/Tasks'))
+const Companies = lazy(() => import('./pages/Companies'))
+const Contacts = lazy(() => import('./pages/Contacts'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 export function App() {
   return <BrowserRouter><Suspense fallback={<div className="app-loading" role="status"><span className="loading-spinner" />Getting your workspace ready…</div>}>
     <Routes><Route element={<AuthGate />}><Route path="login" element={<Auth />} /><Route path="signup" element={<Auth signup />} /><Route element={<AppLayout />}>
       <Route index element={<Dashboard />} />
+      <Route path="today" element={<Today />} />
+      <Route path="calendar" element={<Calendar />} />
+      <Route path="tasks" element={<Tasks />} />
+      <Route path="companies" element={<Companies />} />
+      <Route path="companies/:id" element={<Companies />} />
+      <Route path="contacts" element={<Contacts />} />
       <Route path="applications" element={<Applications />} />
       <Route path="saved" element={<SavedJobs />} />
       <Route path="applications/:id" element={<ApplicationDetails />} />

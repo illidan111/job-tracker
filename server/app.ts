@@ -10,6 +10,10 @@ import { ApiError } from './errors'
 import { applicationInputSchema, applicationsSchema, contactInputSchema, dateSchema, interviewInputSchema, optionalDate, profileSchema, savedJobInputSchema, savedJobSchema } from '../src/validation/application'
 import { STATUSES } from '../src/types/application'
 import { createDemoApplications } from '../src/data/demo'
+import { careerRoutes } from './careerRoutes'
+import { careerBackupSchema } from '../src/domain/career'
+import { exportCareer } from './careerBackup'
+import { collections } from './collections'
 
 const versionSchema = z.object({ version: z.number().int().positive() })
 export function createApp(db: DatabaseSync, options: AuthOptions & { origin: string; staticDir?: string }) {
@@ -47,8 +51,16 @@ export function createApp(db: DatabaseSync, options: AuthOptions & { origin: str
   })
   app.post('/api/auth/logout', (request, response) => { auth.logout(request, response); response.status(204).end() })
   app.use('/api', (request, response, next) => { response.locals.userId = auth.requireUser(request).id; next() })
+  app.use('/api', careerRoutes(db))
+  app.use('/api', collections(db))
   app.get('/api/workspace', (_request, response) => response.json(repo.workspace(response.locals.userId)))
-  app.get('/api/saved-jobs', (_request, response) => response.json(repo.savedJobs(response.locals.userId)))
+  app.get('/api/notifications', (request, response) => {
+    const page = z.coerce.number().int().min(1).max(100000).default(1).parse(request.query.page)
+    const items = repo.notifications(response.locals.userId, page)
+    response.json({ items, page, pageSize: 50, total: Number(db.prepare('SELECT count(*) n FROM notifications WHERE userId=?').get(response.locals.userId)!.n) })
+  })
+  app.get('/api/workspace/export', (_request, response) => response.json({ version: 4, exportedAt: new Date().toISOString(), applications: repo.applications(response.locals.userId), savedJobs: repo.savedJobs(response.locals.userId), career: exportCareer(db, response.locals.userId) }))
+  app.get('/api/saved-jobs', (_request, response) => response.json(repo.savedJobs(response.locals.userId, 100)))
   app.post('/api/saved-jobs', (request, response) => response.status(201).json(repo.createSavedJob(response.locals.userId, savedJobInputSchema.parse(request.body))))
   app.put('/api/saved-jobs/:id', (request, response) => response.json(repo.updateSavedJob(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version, savedJobInputSchema.parse(request.body))))
   app.delete('/api/saved-jobs/:id', (request, response) => { repo.removeSavedJob(response.locals.userId, String(request.params.id), versionSchema.parse(request.body).version); response.status(204).end() })
@@ -92,7 +104,7 @@ export function createApp(db: DatabaseSync, options: AuthOptions & { origin: str
   app.patch('/api/profile', (request, response) => { repo.updateProfile(response.locals.userId, profileSchema.omit({ email: true }).parse(request.body)); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/notifications/read-all', (_request, response) => { repo.readNotification(response.locals.userId); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/notifications/:id/read', (request, response) => { repo.readNotification(response.locals.userId, String(request.params.id)); response.json(repo.workspace(response.locals.userId)) })
-  app.post('/api/workspace/import', (request, response) => { const input = z.object({ applications: applicationsSchema, savedJobs: z.array(savedJobSchema).max(10000).optional() }).parse(request.body); if (input.savedJobs && new Set(input.savedJobs.map(job => job.id)).size !== input.savedJobs.length) throw new ApiError(422, 'Saved job IDs must be unique.'); repo.replace(response.locals.userId, input.applications, input.savedJobs); response.json(repo.workspace(response.locals.userId)) })
+  app.post('/api/workspace/import', (request, response) => { const input = z.object({ applications: applicationsSchema, savedJobs: z.array(savedJobSchema).max(10000).optional(), career: careerBackupSchema.optional() }).parse(request.body); if (input.savedJobs && new Set(input.savedJobs.map(job => job.id)).size !== input.savedJobs.length) throw new ApiError(422, 'Saved job IDs must be unique.'); repo.replace(response.locals.userId, input.applications, input.savedJobs, input.career); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/workspace/demo', (_request, response) => { repo.replace(response.locals.userId, createDemoApplications()); response.json(repo.workspace(response.locals.userId)) })
   app.post('/api/workspace/clear', (_request, response) => { repo.replace(response.locals.userId, []); response.json(repo.workspace(response.locals.userId)) })
   app.use('/api', (_request, _response, next) => next(new ApiError(404, 'This endpoint does not exist.')))

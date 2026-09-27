@@ -19,6 +19,7 @@ it('migrates an existing application and interview without losing either record'
     old.prepare('INSERT INTO users (id,email,passwordHash,name,createdAt,updatedAt) VALUES (?,?,?,?,?,?)').run('u1', 'legacy@example.test', 'unused', 'Legacy User', time, time)
     old.prepare('INSERT INTO applications (id,userId,company,position,employmentType,status,dateApplied,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?,?)').run('a1', 'u1', 'Old Company', 'Engineer', 'Full-time', 'APPLIED', '2026-09-01', time, time)
     old.prepare('INSERT INTO interviews (id,applicationId,userId,scheduledAt,type,outcome,createdAt,updatedAt) VALUES (?,?,?,?,?,?,?,?)').run('i1', 'a1', 'u1', time, 'Video', 'Scheduled', time, time)
+    old.prepare('INSERT INTO timeline_events (id,applicationId,userId,type,at,status,description) VALUES (?,?,?,?,?,?,?)').run('e1', 'a1', 'u1', 'created', time, 'APPLIED', 'Original application')
     old.close()
     const migrated = openDatabase(path)
     const app = migrated.prepare('SELECT * FROM applications WHERE id=?').get('a1')!
@@ -26,6 +27,10 @@ it('migrates an existing application and interview without losing either record'
     expect(app).toMatchObject({ company: 'Old Company', source: '', deadline: '', archivedAt: '', followUpReason: '', followUpNote: '' })
     expect(interview).toMatchObject({ type: 'Video', round: '', location: '' })
     expect(migrated.prepare('SELECT COUNT(*) AS n FROM saved_jobs').get()).toMatchObject({ n: 0 })
+    expect(migrated.prepare('SELECT c.name FROM companies c JOIN application_companies ac ON ac.companyId=c.id AND ac.userId=c.userId WHERE ac.applicationId=?').get('a1')).toMatchObject({ name: 'Old Company' })
+    expect(migrated.prepare('SELECT description FROM timeline_events WHERE id=?').get('e1')).toMatchObject({ description: 'Original application' })
+    expect(migrated.prepare('PRAGMA foreign_key_check').all()).toEqual([])
+    expect(migrated.prepare('SELECT name FROM sqlite_master WHERE type=\'index\' AND name IN (\'tasks_user_due\',\'application_companies_company\',\'notes_application\')').all()).toHaveLength(3)
     migrated.close()
   } finally { rmSync(directory, { recursive: true, force: true }) }
 })

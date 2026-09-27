@@ -3,7 +3,7 @@ import type { Application } from '../types/application'
 import { eventLabel } from '../utils/timeline'
 import { formatDateTime } from '../utils/dates'
 import { CompanyMark } from './CompanyMark'
-export function RecentActivity({ applications }: { applications: Application[] }) {
-  const events = applications.flatMap(app => app.timeline.map(event => ({ app, event }))).sort((a, b) => b.event.at.localeCompare(a.event.at)).slice(0, 5)
+export function RecentActivity({ applications = [], items }: { applications?: Application[]; items?: import('../domain/overview').Overview['activity'] }) {
+  const events = items ?? applications.flatMap(app => app.timeline.map(event => ({ app, event }))).sort((a, b) => b.event.at.localeCompare(a.event.at)).slice(0, 5)
   return <div className="activity-feed">{events.length ? events.map(({ app, event }) => <Link to={`/applications/${app.id}`} key={event.id}><CompanyMark company={app.company} small /><div><strong>{app.company}</strong><p>{eventLabel(event)}</p><small>{formatDateTime(event.at)}</small></div></Link>) : <div className="small-empty"><p>No activity yet.</p></div>}</div>
 }

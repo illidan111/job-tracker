@@ -8,7 +8,7 @@ export const INTERVIEW_TYPES = ['Phone', 'Video', 'Technical', 'Behavioral', 'On
 export const INTERVIEW_OUTCOMES = ['Scheduled', 'Completed', 'Next round', 'Not moving forward', 'Cancelled'] as const
 export const APPLICATION_SOURCES = ['LinkedIn', 'Company website', 'Referral', 'Job board', 'Recruiter', 'Other'] as const
 export type ApplicationSource = (typeof APPLICATION_SOURCES)[number] | ''
-export const EVENT_TYPES = ['created', 'updated', 'status', 'contact', 'interview_scheduled', 'interview_updated', 'interview_completed', 'interview_cancelled', 'interview_deleted', 'followup_scheduled', 'followup_completed'] as const
+export const EVENT_TYPES = ['created', 'updated', 'status', 'contact', 'interview_scheduled', 'interview_updated', 'interview_completed', 'interview_cancelled', 'interview_deleted', 'followup_scheduled', 'followup_completed', 'task_created', 'task_completed', 'task_updated', 'note_added', 'note_updated', 'note_deleted', 'materials_updated', 'preparation_updated'] as const
 
 export interface Contact {
   id: string
@@ -69,6 +69,7 @@ export interface TimelineEvent {
 
 export interface Application {
   id: string
+  companyId?: string
   company: string
   position: string
   location: string

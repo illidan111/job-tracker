@@ -73,6 +73,7 @@ export const applicationSchema = z.object({
   followUpReason: fields.followUpReason.default(''),
   followUpNote: fields.followUpNote.default(''),
   id: z.string().min(1).max(100),
+  companyId: z.string().optional(),
   location: fields.location.default(''),
   salary: z.number().finite().min(0).max(100000000).optional(),
   jobUrl: optionalUrl.default(''),
@@ -98,7 +99,7 @@ export const applicationSchema = z.object({
 })
 
 export const applicationInputSchema = applicationSchema.omit({
-  id: true, createdAt: true, updatedAt: true, timeline: true, version: true, contacts: true, interviews: true, followUpCompletedAt: true, archivedAt: true,
+  id: true, companyId: true, createdAt: true, updatedAt: true, timeline: true, version: true, contacts: true, interviews: true, followUpCompletedAt: true, archivedAt: true,
 })
 
 export const savedJobInputSchema = z.object({

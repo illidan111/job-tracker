@@ -3,8 +3,8 @@ import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YA
 import type { Application } from '../types/application'
 import { activityData } from '../utils/applications'
 
-export function ActivityChart({ applications, period = 'weekly' }: { applications: Application[]; period?: 'weekly' | 'monthly' }) {
-  const data = useMemo(() => activityData(applications, period), [applications, period])
+export function ActivityChart({ applications = [], series, period = 'weekly' }: { applications?: Application[]; series?: ReturnType<typeof activityData>; period?: 'weekly' | 'monthly' }) {
+  const data = useMemo(() => series ?? activityData(applications, period), [applications, period, series])
   return <figure className="activity-figure" aria-label={`Applications over time. ${data.map(item => `${item.label}: ${item.applications}`).join('. ')}`}>
     <div className="activity-chart" aria-hidden="true"><ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 500, height: 230 }}>
       <AreaChart data={data} accessibilityLayer={false} margin={{ top: 14, right: 12, bottom: 0, left: -24 }}>

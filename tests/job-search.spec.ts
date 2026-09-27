@@ -69,7 +69,7 @@ test('saved job becomes a complete application and remains recoverable after arc
   await page.getByRole('button', { name: 'Export JSON' }).click()
   const download = await downloadPromise
   const backup = JSON.parse(await readFile((await download.path())!, 'utf8')) as { version: number; savedJobs: unknown[]; applications: { company: string }[] }
-  expect(backup.version).toBe(3)
+  expect(backup.version).toBe(4)
   expect(backup.savedJobs).toHaveLength(0)
   expect(backup.applications[0].company).toBe('Northstar')
   await page.reload()

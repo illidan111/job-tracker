@@ -1,5 +1,23 @@
 # Verification record
 
+## Career CRM cycle - 2026-09-27
+
+The repository was inspected at baseline commit `7558212`; findings and scope are in [Career CRM audit](CAREER_CRM_AUDIT.md). Work kept the existing visual system and authentication architecture, introduced no package dependencies, and used isolated test databases throughout.
+
+Verified checks:
+
+- TypeScript, ESLint and 42 Vitest tests pass. New HTTP tests cover shared companies, task completion/idempotent retries/conflicts, notes, materials, preparation, foreign-owner access, timezone projection, complete v4 backup restoration and transactional rollback. A 215-application fixture verifies pagination and aggregates beyond bootstrap size. The migration test checks preserved application/interview/activity rows, company backfill, indexes and foreign-key integrity.
+- The complete CRM browser journey passes: saved job, conversion, company research, recruiter, conversation note, materials, interview preparation, follow-up, task completion, status/history, Today/calendar, overview/analytics, grouped search/filtering, v4 export/import, refresh, logout/login and a second account's rejected direct links/API requests.
+- New CRM layout/dialog checks pass at 320, 375, 768, 1024 and 1440 px in light mode, plus 375 and 1440 px in dark mode. Axe WCAG A/AA checks pass on the new routes and dialogs at 375/1440 in both themes. Calendar selection, modal Escape, command-search keyboard focus and viewport bounds are exercised. Actual desktop Today and mobile dark-calendar screenshots were inspected.
+- The local production smoke passes with compiled assets, CSP, deep links and persisted sessions, 24 applications, tasks and materials after restarting the API. It uses a temporary database; no deployment occurs.
+- `npm audit --omit=dev` reports zero known vulnerabilities.
+
+The production build has an entry JavaScript chunk of 372.87 kB (116.67 kB gzip), CSS 80.71 kB (15.78 kB gzip) and a separately loaded chart chunk of 375.64 kB (108.34 kB gzip). New Today/calendar screen chunks are about 2.7 kB each before gzip. Collection queries and aggregate responses avoid hydrating the whole application corpus into the browser; server analytics still do work proportional to the local dataset.
+
+Initial browser passes found real regressions in temporary Kanban moves, expired-session races, invalid page links, loading-state rendering and calendar contrast. Those were corrected and verified again. Backup assertions were updated from version 3 to version 4, the failure-injection test now targets the smaller reminder refresh, and the registration landing assertion follows the new Today default while still checking an empty isolated account.
+
+The final complete Edge run passed 47 of 48 scenarios. Its only failure was the outdated registration landing assertion; after updating that assertion to Today, `playwright test --last-failed` passed the remaining scenario. All 48 scenarios have therefore passed across the complete run and that targeted rerun; no scenario was skipped. Automated accessibility checks do not substitute for manual screen-reader testing. Chromium/Edge is the verified browser engine; Firefox/WebKit, hosted operations and offline behavior are not claimed.
+
 ## Job-search workflow expansion — 2026-09-27
 
 The migration from the previous database schema was exercised with an actual pre-migration application and interview; both records and their new default fields survived. API tests cover account isolation for saved jobs, version conflicts, atomic conversion, bulk ownership/rollback, archive restoration, and backup validation. A new browser journey covers saved job → application → contact/follow-up/interview → Kanban → analytics/filter → archive/restore → command palette → export/reload.

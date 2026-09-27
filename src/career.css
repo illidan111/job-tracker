@@ -1,0 +1,92 @@
+.sidebar { overflow-y: auto; }
+.remote-state { padding: 24px; font-size: 13px; }
+.crm-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 14px 20px; }
+.crm-toolbar input { min-width: 0; max-width: 290px; flex: 1; }
+.crm-list { list-style: none; margin: 0; padding: 0 20px; }
+.crm-list > li { padding: 17px 0; border-bottom: 1px solid var(--border); }
+.crm-list > li:last-child { border-bottom: 0; }
+.crm-list p { margin: 5px 0; font-size: 13px; overflow-wrap: anywhere; }
+.task-row { display: flex; align-items: flex-start; gap: 10px; }
+.task-main { flex: 1; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
+.task-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; color: var(--muted); font-size: 11px; margin-top: 9px; }
+.task-meta a { color: var(--primary); }
+.priority { padding: 3px 7px; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: 5px; text-transform: capitalize; }
+.priority-high { font-weight: 700; }
+.career-panel .panel-heading { flex-wrap: wrap; gap: 10px; }
+.career-content { padding: 0 22px 24px; }
+.career-content h3 { font-size: 15px; margin: 24px 0 10px; }
+.career-content > input { width: 100%; }
+.career-content .muted { font-size: 13px; }
+.preserved-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.7; font-size: 14px; }
+.material-facts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; }
+.material-facts dt { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+.material-facts dd { margin: 0; overflow-wrap: anywhere; font-size: 14px; }
+.workspace-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 18px 0 24px; border-bottom: 1px solid var(--border); }
+.workspace-tabs button { padding: 11px 15px; color: var(--muted); font-size: 13px; border-bottom: 2px solid transparent; }
+.workspace-tabs button[aria-current="page"] { border-bottom-color: var(--primary); color: var(--text); font-weight: 600; }
+.company-profile-link { margin-top: -15px; font-size: 13px; }
+.note-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; color: var(--muted); font-size: 12px; }
+.note-entry .preserved-text { margin-top: 8px; }
+.preparation-links { display: flex; gap: 8px; flex-wrap: wrap; padding: 0 22px 22px; }
+.preparation-checklist { list-style: none; padding: 0; margin: 12px 0; }
+.preparation-checklist li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.preparation-checklist label { display: flex; align-items: center; gap: 10px; overflow-wrap: anywhere; font-size: 13px; }
+.preparation-checklist input { width: 16px; height: 16px; accent-color: var(--primary); }
+.topic-add { display: flex; gap: 8px; margin-bottom: 22px; }
+.topic-add input { flex: 1; min-width: 0; }
+.career-columns { display: grid; grid-template-columns: minmax(0,1.4fr) minmax(0,1fr); gap: 22px; margin-bottom: 22px; }
+.company-directory-row { display: flex; align-items: center; gap: 14px; }
+.company-directory-row > div { min-width: 0; }
+.company-directory-row p { color: var(--muted); }
+.company-application { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.company-application > a { margin-right: auto; }
+.company-contact a { overflow-wrap: anywhere; }
+.company-interviews { margin-top: 22px; }
+.agenda-group { margin-top: 25px; }
+.agenda-group h2 { font-size: 16px; margin: 0 0 10px; }
+.agenda-group .crm-list { background: var(--surface); border: 1px solid var(--border); border-radius: 9px; }
+.agenda-row { display: flex; align-items: flex-start; gap: 15px; }
+.agenda-kind { width: 76px; flex-shrink: 0; font-size: 11px; text-transform: capitalize; border: 1px solid var(--border); padding: 5px 6px; border-radius: 5px; text-align: center; }
+.agenda-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; overflow-wrap: anywhere; font-size: 14px; }
+.agenda-main span, .agenda-main time { font-size: 12px; color: var(--muted); }
+.agenda-main time.deadline-due { color: var(--danger); }
+.suggestion-panel { margin-top: 25px; }
+.today-context { margin-top: 25px; }
+.calendar-heading { display: flex; align-items: center; gap: 10px; padding: 18px; flex-wrap: wrap; }
+.calendar-heading h2 { margin: 0; font-size: 18px; flex: 1; }
+.calendar-grid, .calendar-weekdays { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); }
+.calendar-weekdays span { text-align: center; font-size: 11px; padding: 8px 0; color: var(--muted); }
+.calendar-grid { padding: 0 12px 12px; gap: 5px; }
+.calendar-grid button { min-height: 83px; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px; border: 1px solid var(--border); border-radius: 6px; }
+.calendar-grid strong { font-size: 14px; font-weight: 500; }
+.calendar-grid button > span { font-size: 11px; color: var(--primary); }
+.calendar-grid button[aria-pressed="true"] { background: var(--green-soft); outline: 2px solid var(--primary); outline-offset: -2px; }
+.calendar-grid .outside-month { color: var(--muted); background: var(--surface-subtle); }
+.career-search { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 18px 0; font-size: 13px; }
+.career-search input { width: min(100%, 320px); }
+.crm-list > article { padding: 20px; margin-bottom: 14px; overflow-wrap: anywhere; }
+.crm-list > article h2 { font-size: 17px; }
+.calendar-grid .calendar-today strong { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.selected-day { margin-top: 28px; }
+.selected-day > h2 { font-size: 17px; }
+.command-results h3 { color: var(--muted); font-size: 11px; margin: 16px 12px 5px; text-transform: uppercase; letter-spacing: .06em; }
+.command-results button > span { display: flex; flex-direction: column; min-width: 0; }
+.command-results strong { font-weight: 500; overflow-wrap: anywhere; }
+.command-results small { color: var(--muted); margin-top: 4px; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .career-columns, .material-facts { grid-template-columns: 1fr; }
+  .crm-toolbar { padding-inline: 14px; }
+  .crm-list { padding-inline: 14px; }
+  .task-row { flex-wrap: wrap; }
+  .task-row .row-actions { margin-left: auto; }
+  .calendar-grid { gap: 3px; padding: 0 7px 7px; }
+  .calendar-grid button { min-height: 65px; padding: 6px 4px; }
+  .calendar-event-word { display: none; }
+  .calendar-heading { padding: 14px 8px; gap: 5px; }
+  .calendar-heading h2 { font-size: 15px; }
+  .agenda-row { flex-wrap: wrap; gap: 10px; }
+  .agenda-kind { width: 67px; }
+  .workspace-tabs button { padding-inline: 10px; }
+  .topic-add { flex-wrap: wrap; }
+  .topic-add input { flex-basis: 100%; }
+}

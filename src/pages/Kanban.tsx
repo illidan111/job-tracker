@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { DndContext, DragOverlay, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core'
 import type { DragEndEvent } from '@dnd-kit/core'
@@ -7,11 +7,15 @@ import { STATUSES, STATUS_META } from '../types/application'
 import type { Application, Status } from '../types/application'
 import { useWorkspace } from '../state/useWorkspace'
 import { useUI } from '../state/useUI'
-import { emptyFilters, filterApplications, formatSalary } from '../utils/applications'
+import { formatSalary } from '../utils/applications'
 import { formatDate } from '../utils/dates'
 import { PageHeading } from '../components/PageHeading'
 import { CompanyMark } from '../components/CompanyMark'
 import { Button } from '../components/ui/Button'
+import { Pagination } from '../components/ui/Pagination'
+import { RemoteState } from '../components/ui/RemoteState'
+import { useDebounced, useResource } from '../hooks/useResource'
+import type { ApplicationPage } from '../domain/overview'
 
 function KanbanCard({ application }: { application: Application }) {
   const pending = useWorkspace(state => state.pending)
@@ -28,11 +32,19 @@ function KanbanCard({ application }: { application: Application }) {
   </article>
 }
 
-function KanbanColumn({ status, applications }: { status: Status; applications: Application[] }) {
+function KanbanColumn({ status, search }: { status: Status; search: string }) {
+  const [page, setPage] = useState(1)
+  const query = useResource<ApplicationPage>(`/applications?status=${status}&q=${encodeURIComponent(search)}&page=${page}&pageSize=20`)
+  const moving = useWorkspace(state => state.moving)
+  const cached = useWorkspace(state => state.applications)
+  const moved = moving?.status === status ? cached.find(app => app.id === moving.id) : undefined
+  const applications = [...(query.data?.items ?? []).filter(app => app.id !== moving?.id), ...(moved ? [moved] : [])]
+  useEffect(() => { if (query.data) useWorkspace.setState(state => ({ applications: [...query.data!.items, ...state.applications.filter(app => !query.data!.items.some(item => item.id === app.id))].slice(0, 200) })) }, [query.data])
   const { setNodeRef, isOver } = useDroppable({ id: status })
   const openEditor = useUI(state => state.openEditor)
   return <section ref={setNodeRef} className={`kanban-column ${isOver ? 'is-over' : ''}`} aria-label={`${STATUS_META[status].label} column`} data-testid={`column-${status}`}>
-    <div className="kanban-column-heading"><span className={`status-tab-dot ${STATUS_META[status].className}`} /><h2>{STATUS_META[status].label}</h2><span className="count-badge">{applications.length}</span><button className="icon-button" onClick={() => openEditor(undefined, status)} aria-label={`Add application to ${STATUS_META[status].label}`}><Plus size={16} /></button></div>
+    <div className="kanban-column-heading"><span className={`status-tab-dot ${STATUS_META[status].className}`} /><h2>{STATUS_META[status].label}</h2><span className="count-badge">{query.data?.total ?? 0}</span><button className="icon-button" onClick={() => openEditor(undefined, status)} aria-label={`Add application to ${STATUS_META[status].label}`}><Plus size={16} /></button></div>
+    <RemoteState {...query} />{query.data && <Pagination result={query.data} onPage={setPage} />}
     <div className="kanban-card-list">{applications.map(application => <KanbanCard key={application.id} application={application} />)}{!applications.length && <div className="column-empty">No applications<span>Drop a card here.</span></div>}</div>
   </section>
 }
@@ -45,7 +57,8 @@ export default function Kanban() {
   const [search, setSearch] = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-  const filtered = filterApplications(applications.filter(app => !app.archivedAt), { ...emptyFilters, search })
+  const settled = useDebounced(search)
+  const counts = useResource<ApplicationPage>('/applications?q=' + encodeURIComponent(settled) + '&pageSize=1')
   const activeApplication = applications.find(app => app.id === activeId)
   const onDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveId(null)
@@ -58,11 +71,11 @@ export default function Kanban() {
   }
   return <>
     <PageHeading title="Kanban board" action={<Button onClick={() => openEditor()}><Plus size={17} />Add application</Button>} />
-    <div className="board-toolbar"><div className="search-input"><Search size={16} /><input aria-label="Search board" placeholder="Search applications…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear board search"><X size={15} /></button>}</div><p>{filtered.length} applications</p></div>
-    {search && filtered.length === 0 && <p className="board-no-results" role="status">No applications match “{search}”. <button className="text-link" onClick={() => setSearch('')}>Clear search</button></p>}
+    <div className="board-toolbar"><div className="search-input"><Search size={16} /><input aria-label="Search board" placeholder="Search applications…" value={search} onChange={event => setSearch(event.target.value)} />{search && <button className="icon-button" onClick={() => setSearch('')} aria-label="Clear board search"><X size={15} /></button>}</div><p>{(counts.data?.total ?? 0)} applications</p></div>
+    {search && (counts.data?.total ?? 0) === 0 && <p className="board-no-results" role="status">No applications match “{search}”. <button className="text-link" onClick={() => setSearch('')}>Clear search</button></p>}
     <p className="board-scroll-hint">Scroll to see all stages →</p>
     <DndContext sensors={sensors} onDragStart={event => setActiveId(String(event.active.id))} onDragCancel={() => setActiveId(null)} onDragEnd={onDragEnd} accessibility={{ screenReaderInstructions: { draggable: 'Use the status menu on each card to move an application with a keyboard. You can also drag this handle with a pointer.' } }}>
-      <div className="kanban-board" aria-label="Application pipeline" tabIndex={0}>{STATUSES.map(status => <KanbanColumn key={status} status={status} applications={filtered.filter(app => app.status === status)} />)}</div>
+      <div className="kanban-board" aria-label="Application pipeline" tabIndex={0}>{STATUSES.map(status => <KanbanColumn key={status + settled} status={status} search={settled} />)}</div>
       <DragOverlay dropAnimation={{ duration: 180, easing: 'ease' }}>{activeApplication ? <div className="kanban-card drag-overlay" aria-hidden="true"><div className="kanban-card-top"><CompanyMark company={activeApplication.company} small /><span>{activeApplication.company}</span></div><span className="kanban-card-title">{activeApplication.position}</span><p className="kanban-location">{activeApplication.location}</p><p className="kanban-salary">{formatSalary(activeApplication.salary)}</p></div> : null}</DragOverlay>
     </DndContext>
   </>

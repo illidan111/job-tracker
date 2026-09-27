@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import './styles.css'
+import './career.css'
 import './auth.css'
 import './features.css'
 

@@ -10,15 +10,15 @@ import { Button } from './ui/Button'
 import { ConfirmDialog, Dialog } from './ui/Dialog'
 import { Field } from './ui/Field'
 
-function ContactForm({ app, contact, onClose }: { app: Application; contact?: Contact; onClose: () => void }) {
+export function ContactForm({ app, contact, onClose }: { app?: Application; contact?: Contact; onClose: () => void }) {
   const contacts = useWorkspace(state => state.contacts), error = useWorkspace(state => state.storageError), pending = useWorkspace(state => state.pending)
   const [existing, setExisting] = useState(''), [discard, setDiscard] = useState(false), [version, setVersion] = useState(contact?.version ?? 1)
-  const available = contacts.filter(item => !app.contacts.some(linked => linked.id === item.id))
-  const { register, handleSubmit, formState: { errors, isDirty, isSubmitting } } = useForm<ContactInput>({ resolver: zodResolver(contactInputSchema), defaultValues: contact ?? { name: '', email: '', company: app.company, role: '', linkedInUrl: '', notes: '' } })
+  const available = contacts.filter(item => !app?.contacts.some(linked => linked.id === item.id))
+  const { register, handleSubmit, formState: { errors, isDirty, isSubmitting } } = useForm<ContactInput>({ resolver: zodResolver(contactInputSchema), defaultValues: contact ?? { name: '', email: '', company: app?.company ?? '', role: '', linkedInUrl: '', notes: '' } })
   const close = () => { if (!pending) { if (isDirty || existing) setDiscard(true); else onClose() } }
   const saved = (success: boolean) => { if (success) { useUI.getState().toast(contact ? 'Contact updated' : 'Contact added'); onClose() } else setVersion(useWorkspace.getState().contacts.find(item => item.id === contact?.id)?.version ?? version) }
   return <><Dialog title={contact ? 'Edit contact' : 'Add a contact'} description={contact ? 'Updates appear on every application linked to this contact.' : undefined} className="application-dialog" onClose={close}>
-    <form onSubmit={event => { if (existing) { event.preventDefault(); void useWorkspace.getState().attachContact(app.id, { contactId: existing }).then(saved) } else void handleSubmit(async input => saved(contact ? await useWorkspace.getState().editContact(contact.id, input, version) : await useWorkspace.getState().attachContact(app.id, { contact: input })))(event) }} noValidate>
+    <form onSubmit={event => { if (existing) { event.preventDefault(); void useWorkspace.getState().attachContact(app!.id, { contactId: existing }).then(saved) } else void handleSubmit(async input => saved(contact ? await useWorkspace.getState().editContact(contact.id, input, version, app?.id) : await useWorkspace.getState().attachContact(app!.id, { contact: input })))(event) }} noValidate>
       <div className="form-body">{!contact && available.length > 0 && <Field label="Use an existing contact">{props => <select {...props} value={existing} onChange={event => setExisting(event.target.value)}><option value="">Create a new contact</option>{available.map(item => <option key={item.id} value={item.id}>{item.name}{item.company ? ` · ${item.company}` : ''}</option>)}</select>}</Field>}
       {!existing && <div className="form-grid contact-form-grid">
         <Field label="Contact name *" error={errors.name?.message}>{props => <input {...props} {...register('name')} autoFocus />}</Field>
