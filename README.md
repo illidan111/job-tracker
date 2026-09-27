@@ -4,6 +4,20 @@ A personal career journey: save opportunities, manage applications, prepare for 
 
 Home puts priorities before statistics. Journey makes meaningful progress visible with optional companions, levels and achievements. The core career tools work independently of this layer.
 
+## Current design
+
+Home brings the next useful steps, career progress and pipeline into one calm view.
+
+![Waypoint Home with priorities, companion and career pipeline](docs/images/home-current.png)
+
+Journey shows the companion, level, contextual steps, milestones and achievements.
+
+![Waypoint Journey with progress, companion and achievements](docs/images/journey-current.png)
+
+The same experience adapts to mobile and dark mode.
+
+<img src="docs/images/mobile-current.png" alt="Waypoint Home on mobile in dark mode, with bottom navigation" width="390">
+
 ## Run locally
 
 Requires **Node.js 24.14+** and npm. No Docker, cloud account, or paid service is required.
