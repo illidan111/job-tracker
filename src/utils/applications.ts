@@ -27,14 +27,15 @@ export function filterApplications(applications: Application[], filters: Filters
 }
 
 export function hasReached(app: Application, status: 'INTERVIEW' | 'OFFER') {
-  return app.status === status || (status === 'INTERVIEW' && (app.status === 'OFFER' || app.interviews.some(interview => interview.outcome !== 'Cancelled'))) || app.timeline.some(event => event.status === status || (status === 'INTERVIEW' && event.status === 'OFFER'))
+  return app.status === status || (status === 'INTERVIEW' && (app.status === 'OFFER' || app.interviews.some(interview => interview.outcome !== 'Cancelled'))) || app.timeline.some(event => event.status === status || (status === 'INTERVIEW' && (event.status === 'OFFER' || event.type === 'interview_completed')))
 }
 
 export function getMetrics(applications: Application[]) {
   const total = applications.length
   const interviews = applications.filter(app => hasReached(app, 'INTERVIEW')).length
   const offers = applications.filter(app => hasReached(app, 'OFFER')).length
-  const thisMonth = applications.filter(app => app.dateApplied.slice(0, 7) === dateKey().slice(0, 7)).length
+  const today = dateKey()
+  const thisMonth = applications.filter(app => app.dateApplied.slice(0, 7) === today.slice(0, 7) && app.dateApplied <= today).length
   return {
     total, interviews, offers, thisMonth,
     active: applications.filter(app => !['OFFER', 'REJECTED'].includes(app.status)).length,

@@ -83,6 +83,7 @@ export class Repository {
     this.db.prepare('INSERT OR IGNORE INTO application_contacts (applicationId,userId,contactId,linkedAt) VALUES (?,?,?,?)').run(id, userId, contactId, now())
   }
   private insertInterview(userId: string, id: string, input: InterviewInput) {
+    if (Number(this.db.prepare('SELECT COUNT(*) AS n FROM interviews WHERE userId=? AND applicationId=?').get(userId, id)?.n) >= 100) throw new ApiError(422, 'An application can have up to 100 interviews.')
     const time = now()
     this.insert('interviews', { id: randomUUID(), applicationId: id, userId, ...input, createdAt: time, updatedAt: time })
   }
@@ -166,7 +167,6 @@ export class Repository {
         if (input) this.db.prepare(`UPDATE interviews SET ${interviewKeys.map(key => `${key}=?`).join(',')},updatedAt=? WHERE userId=? AND applicationId=? AND id=?`).run(...interviewKeys.map(key => input[key]), now(), userId, id, interviewId)
         else this.db.prepare('DELETE FROM interviews WHERE userId=? AND applicationId=? AND id=?').run(userId, id, interviewId)
       } else if (input) {
-        if (Number(this.db.prepare('SELECT COUNT(*) AS n FROM interviews WHERE userId=? AND applicationId=?').get(userId, id)?.n) >= 100) throw new ApiError(422, 'An application can have up to 100 interviews.')
         this.insertInterview(userId, id, input)
       }
       const type = !input ? 'interview_deleted' : input.outcome === 'Cancelled' ? 'interview_cancelled' : input.outcome !== 'Scheduled' ? 'interview_completed' : interviewId ? 'interview_updated' : 'interview_scheduled'
@@ -178,6 +178,7 @@ export class Repository {
   attachContact(userId: string, id: string, version: number, contactId?: string, input?: ContactInput) {
     transaction(this.db, () => {
       this.check(userId, id, version)
+      if (contactId && this.db.prepare('SELECT contactId FROM application_contacts WHERE userId=? AND applicationId=? AND contactId=?').get(userId, id, contactId)) return
       if (Number(this.db.prepare('SELECT COUNT(*) AS n FROM application_contacts WHERE userId=? AND applicationId=?').get(userId, id)?.n) >= 30) throw new ApiError(422, 'An application can have up to 30 contacts.')
       if (contactId && !this.db.prepare('SELECT id FROM contacts WHERE userId=? AND id=?').get(userId, contactId)) throw new ApiError(404, 'This contact is no longer available.')
       const target = contactId ?? this.insertContact(userId, input!)

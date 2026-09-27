@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createDemoApplications } from '../data/demo'
 import { applicationFormSchema, applicationsSchema } from '../validation/application'
 import { activityData, emptyFilters, filterApplications, getMetrics } from './applications'
@@ -11,6 +11,7 @@ function memoryStorage() {
 }
 
 beforeEach(() => { vi.stubGlobal('localStorage', memoryStorage()) })
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 
 describe('application data and validation', () => {
   it('provides valid, realistic seed data with chronological history', () => {
@@ -63,6 +64,19 @@ describe('search, filters and statistics', () => {
     expect(getMetrics([app]).offerRate).toBe(0)
     expect(getMetrics([])).toMatchObject({ total: 0, interviewRate: 0, offerRate: 0 })
     expect(activityData([], 'weekly').every(row => row.applications === 0)).toBe(true)
+  })
+  it('preserves completed interview conversion when its interview record is removed', () => {
+    const app = { ...apps[0], status: 'REJECTED' as const, interviews: [], timeline: [{ id: 'completed', type: 'interview_completed' as const, at: apps[0].createdAt }] }
+    expect(getMetrics([app])).toMatchObject({ interviews: 1, interviewRate: 100 })
+    expect(getMetrics([{ ...app, timeline: [{ ...app.timeline[0], type: 'interview_cancelled' }] }]).interviews).toBe(0)
+  })
+  it('uses local Monday and month boundaries and excludes future dates from progress', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2026, 8, 7, 0, 5))
+    const dated = ['2026-08-31', '2026-09-01', '2026-09-06', '2026-09-07', '2026-09-08'].map(dateApplied => ({ ...apps[0], dateApplied }))
+    expect(getMetrics(dated)).toMatchObject({ thisWeek: 1, thisMonth: 3 })
+    vi.setSystemTime(new Date(2026, 8, 6, 23, 59))
+    expect(getMetrics(dated)).toMatchObject({ thisWeek: 3, thisMonth: 2 })
   })
   it('aggregates all recent seed applications into the monthly chart', () => {
     expect(activityData(apps, 'monthly').reduce((sum, row) => sum + row.applications, 0)).toBe(apps.length)

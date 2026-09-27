@@ -6,7 +6,7 @@ playwright-report/
 .env
 .env.*
 !.env.example
-data/
+/data/
 *.sqlite
 *.sqlite-*
 coverage/

@@ -48,7 +48,7 @@ export function ApplicationForm() {
   return <>
     <Dialog title={application ? 'Edit application' : 'Add application'} onClose={requestClose} className="application-dialog">
       <form onSubmit={event => { void handleSubmit(onSubmit, errors => {
-        if (['recruiter', 'recruiterEmail', 'interviewDate', 'notes', 'tags'].some(key => key in errors) && extraFields.current) extraFields.current.open = true
+        if (['recruiter', 'recruiterEmail', 'interviewDate', 'notes', 'tags', 'followUpDate'].some(key => key in errors) && extraFields.current) extraFields.current.open = true
       })(event) }} noValidate>
         <div className="form-body">
           {serverError && <p className="form-error" role="alert">{serverError}</p>}

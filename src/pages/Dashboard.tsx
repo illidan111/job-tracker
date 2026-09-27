@@ -25,8 +25,8 @@ export default function Dashboard() {
   const upcoming = upcomingInterviews(applications)
   const recent = [...applications].sort((a, b) => b.dateApplied.localeCompare(a.dateApplied)).slice(0, 5)
   const supportingStats = [
-    { label: 'Interviewed', value: metrics.interviews, detail: `${metrics.interviewRate}% conversion`, to: '/analytics' },
-    { label: 'Offers', value: metrics.offers, detail: `${metrics.offerRate}% conversion`, to: '/analytics' },
+    { label: 'Interviewed', value: metrics.interviews, detail: metrics.total ? `${metrics.interviewRate}% conversion` : 'No applications yet', to: '/analytics' },
+    { label: 'Offers', value: metrics.offers, detail: metrics.total ? `${metrics.offerRate}% conversion` : 'No applications yet', to: '/analytics' },
     { label: 'Applied this month', value: metrics.thisMonth, detail: '', to: `/applications?from=${dateKey(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}&to=${dateKey(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))}` },
   ]
   return <>

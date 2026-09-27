@@ -9,7 +9,7 @@ A calm, full-stack workspace for a job search: applications, conversations, peop
 Requires **Node.js 24.14+** and npm. No Docker, cloud account, or paid service is required.
 
 ```sh
-npm install
+npm ci
 npm run dev
 ```
 
@@ -33,6 +33,8 @@ Defaults work without a `.env` file. Copy `.env.example` to `.env` only when cus
 | `DEMO_EMAIL`, `DEMO_PASSWORD` | No automatic account | Optional CLI seed account, password at least 12 characters |
 
 Use the exact hostname shown above: `localhost` and `127.0.0.1` are different origins. After changing API ports, restart the development command so its proxy picks up the change. The development launcher reads `.env` before starting the API and Vite.
+
+For separate terminals, run `npm run dev:api` for Express and `npx vite --host 127.0.0.1 --port 5173 --strictPort` for the frontend. Prefer `npm run dev` when changing environment variables, since it loads `.env` for both processes.
 
 ### Production build, served locally
 
@@ -89,6 +91,25 @@ The database has users, sessions, applications, tags, interviews, contacts, time
 
 Read [architecture and security boundaries](docs/ARCHITECTURE.md) for ownership, concurrency, import semantics and tradeoffs.
 
+### API overview
+
+All routes are under `/api`. The browser uses a same-origin, HttpOnly session cookie. Mutations require `Content-Type: application/json` and an `Origin` matching `APP_ORIGIN`. Application writes send the current `version`; stale edits return 409 and can be reviewed and retried.
+
+| Routes | Purpose |
+| --- | --- |
+| `POST /auth/signup`, `/auth/login`, `/auth/logout`; `GET /auth/session` | Account and session lifecycle |
+| `GET /workspace` | Current user's profile, applications, contacts and reminders |
+| `POST /applications`; `GET`, `PUT`, `DELETE /applications/:id` | Application CRUD, including notes and tags |
+| `PATCH /applications/:id/status`, `/applications/:id/follow-up` | Workflow and follow-up updates |
+| `POST /applications/:id/interviews`; `PUT`, `DELETE /applications/:id/interviews/:interviewId` | Interview scheduling and outcomes |
+| `POST /applications/:id/contacts`; `DELETE /applications/:id/contacts/:contactId`; `PUT /contacts/:id` | Shared contacts and application links |
+| `PATCH /profile` | Name, career focus, weekly goal and preferences |
+| `POST /notifications/:id/read`, `/notifications/read-all` | Reminder read state |
+| `POST /workspace/import`, `/workspace/demo`, `/workspace/clear` | Explicit replacement of the current user's workspace |
+| `GET /health` | API/database health |
+
+Errors use `{ "error": "Actionable message" }`: 401 for a missing/expired session, 403 for an unrecognized origin, 404 for missing or foreign-owned records, 409 for conflicts, 422 for invalid input, 429 for authentication throttling, and 503 for unavailable storage. No client-provided owner ID controls access.
+
 ## Migrations and optional CLI seed
 
 ```sh
@@ -128,6 +149,23 @@ npm.cmd run test:production
 API tests use a temporary database and real HTTP requests. Playwright starts isolated test services at **5187 / 3017** and creates a separate database under ignored `data/`. Each test gets its own account; your normal database is untouched. Test output and traces go to `test-results/` and `playwright-report/`. The production smoke test uses a temporary database and port **5190**, verifies the built UI and deep links, then restarts the server to check persisted applications and sessions.
 
 See [verification notes](docs/VERIFICATION.md) for coverage and the final checked environment.
+
+### Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start API and Vite together |
+| `npm run dev:api` | Watch the API source |
+| `npm run db:migrate` / `npm run db:seed` | Initialize schema / seed an explicitly configured development account |
+| `npm run typecheck` / `npm run lint` | TypeScript / ESLint checks |
+| `npm test` | HTTP/database, domain and state recovery tests |
+| `npm run test:e2e` | Isolated browser workflows, responsive and accessibility checks |
+| `npm run build` | Typecheck and compile the frontend |
+| `npm start` | Serve the built frontend and API locally |
+| `npm run preview` | Preview the frontend with a separately running default-port API |
+| `npm run test:production` | Build and verify browser behavior and persistence across an API restart |
+
+Only root `/data/` is ignored: it holds local databases. `src/data/demo.ts` is versioned source required by the optional demo/seed endpoints and tests. New accounts never load sample data automatically.
 
 ## Deliberate limits
 

@@ -1,5 +1,32 @@
 # Verification record
 
+## Engineering hardening — 2026-09-27
+
+See [Engineering audit](ENGINEERING_AUDIT.md) for the starting architecture, concrete findings and fixes. Checked with Node 24.14.0 on Windows and installed Microsoft Edge.
+
+| Command/check | Result |
+| --- | --- |
+| `npm test` | 33 passed: 16 HTTP/database, 14 domain/validation and 3 workspace recovery tests |
+| `npm run lint` | Passed |
+| `npm run typecheck` | Passed |
+| `npm run build` | Passed |
+| `npm run test:e2e` with `PLAYWRIGHT_CHANNEL=msedge` | 39 passed in the complete final workflow run |
+| Final CSS verification | All 16 responsive/accessibility tests passed again after explicit Tailwind source scoping; production smoke passed again; source-copy and Git-worktree CSS had identical SHA-256 hashes |
+| `npm run test:production` | Passed: real compiled UI, CSP, deep links, session and application persistence after API restart |
+| Clean source installation | `npm ci`, build, 33 tests, migration and seed passed; a second seed correctly refused to overwrite data |
+| Dependency checks | `npm audit --omit=dev` and the full audit during clean `npm ci` both reported zero known vulnerabilities |
+| Git hygiene | Required sample source included; local databases, `.env`, dependencies and test artifacts excluded |
+
+The expanded account journey registers in the UI, creates an application with salary, location, URL, tags and notes, edits it, moves it through Kanban, reloads, logs out/in, searches and filters it, reads notes and analytics, and changes/reloads the weekly goal. HTTP tests independently verify cross-account isolation. New regressions cover transaction rollback at the interview limit, repeated contact linking, invalid goals and owner spoofing, local date boundaries, completed-interview conversion history, malformed page links, empty analytics, startup recovery and post-save refresh failures.
+
+Responsive checks covered 320, 375, 768, 1024, 1440 and 1920 px in light and dark themes. All main routes and forms fit their viewport; the board scrolls within its container. Automated axe checks at 375 and 1440 px passed for both themes. Actual screenshots of login, overview, applications, detail, Kanban, populated and empty analytics, and the mobile edit form were inspected for clipping and layout defects.
+
+The first expanded browser run had an ambiguous weekly-goal test locator and a settings page reload during concurrent local verification work. The locator was made role-specific; both scenarios then passed, followed by the complete 39-test run. No test was skipped or assertion relaxed. The Windows sandbox initially prevented `tsx` from calling `uv_os_get_passwd`; browser/server checks were rerun with local process access.
+
+The clean-install check used only the intended source files in a temporary ignored directory, its own dependencies, a new SQLite database and a generated test password. It did not copy or change the normal workspace database. No deployment was performed.
+
+## Earlier verification
+
 The subsequent 2026-09-27 interface refinement, review passes, and final verification results are recorded in [Design review](DESIGN_REVIEW.md). Screenshots below reflect that refinement.
 
 Checked on 2026-09-26 with Node 24.14.0 on Windows, using installed Microsoft Edge through Playwright. Tests use separate databases and accounts; the normal workspace is not used as a test fixture.

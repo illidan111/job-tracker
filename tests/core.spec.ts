@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { signup } from './helpers'
+import { signup, workspace } from './helpers'
 
 test('account, application, board persistence, and session lifecycle', async ({ page }) => {
   const errors: string[] = []
@@ -20,6 +20,12 @@ test('account, application, board persistence, and session lifecycle', async ({ 
   await dialog.getByLabel('Company *', { exact: true }).fill('Aurora Labs')
   await dialog.getByLabel('Position *', { exact: true }).fill('Frontend Engineer')
   await dialog.getByLabel('Work arrangement').selectOption('Remote')
+  await dialog.getByLabel('Location', { exact: true }).fill('Almaty')
+  await dialog.getByLabel('Annual salary (USD)').fill('90000')
+  await dialog.getByLabel('Job URL').fill('https://example.test/careers/frontend')
+  await dialog.locator('summary').click()
+  await dialog.getByLabel('Tags', { exact: true }).fill('React, Priority')
+  await dialog.getByLabel('Notes', { exact: true }).fill('Ask about the team and prepare a portfolio walkthrough.')
   await dialog.getByRole('button', { name: 'Add application', exact: true }).click()
   await expect(dialog).not.toBeVisible()
   await page.getByRole('link', { name: 'Aurora Labs', exact: true }).click()
@@ -40,7 +46,40 @@ test('account, application, board persistence, and session lifecycle', async ({ 
   await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Sign in', exact: true }).click()
   await expect(page.getByTestId('column-INTERVIEW').getByText('Aurora Labs')).toBeVisible()
+  await page.goto('/applications?q=portfolio&tag=Priority&work=Remote&status=INTERVIEW')
+  await expect(page.getByRole('link', { name: 'Aurora Labs', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Aurora Labs', exact: true }).click()
+  await expect(page.locator('.notes-content')).toContainText('portfolio walkthrough')
+  await page.goto('/analytics')
+  await expect(page.getByText('1 of 1 reached an interview')).toBeVisible()
+  await page.goto('/settings')
+  await page.getByRole('spinbutton', { name: 'Weekly application goal' }).fill('12')
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
+  await page.reload()
+  await expect(page.getByRole('spinbutton', { name: 'Weekly application goal' })).toHaveValue('12')
+  const persisted = await workspace(page)
+  expect(persisted.profile.weeklyGoal).toBe(12)
+  expect(persisted.applications[0]).toMatchObject({ salary: 90000, tags: ['Priority', 'React'], location: 'Almaty', notes: 'Ask about the team and prepare a portfolio walkthrough.' })
   expect(errors).toEqual([])
+})
+
+test('empty analytics avoids misleading percentages and offers an application action', async ({ page }) => {
+  await signup(page, false)
+  await page.goto('/analytics')
+  await expect(page.getByRole('heading', { name: 'No activity yet' })).toBeVisible()
+  await expect(page.locator('.analytics-stats')).not.toContainText('%')
+  await page.locator('.empty-state').getByRole('button', { name: 'Add application' }).click()
+  await expect(page.getByRole('dialog', { name: 'Add application' })).toBeVisible()
+})
+
+test('invalid pagination links recover to a whole page', async ({ page }) => {
+  await signup(page)
+  for (const value of ['1.5', 'Infinity', '-3', 'invalid']) {
+    await page.goto(`/applications?page=${value}`)
+    await expect(page.getByText('Page 1 of 3')).toBeVisible()
+    await expect(page.locator('tbody tr')).toHaveCount(10)
+  }
 })
 
 test('invalid credentials and duplicate signup show recoverable errors without exposing another account', async ({ page }) => {

@@ -40,7 +40,9 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
     const message = error instanceof Error ? error.message : 'Please try again.'
     set({ storageError: message })
     if (error instanceof RequestError && [404, 409].includes(error.status)) {
-      try { const current = epoch; const workspace = await api<Workspace>('/workspace'); if (current === epoch) set(workspace) } catch { /* Keep the original actionable error. */ }
+      const current = epoch
+      try { const workspace = await api<Workspace>('/workspace'); if (current === epoch) set(workspace) }
+      catch (refreshError) { if (current === epoch && refreshError instanceof RequestError && refreshError.status === 401) expire(refreshError.message) }
     }
   }
   const version = (id: string) => get().applications.find(app => app.id === id)?.version ?? 1
@@ -61,7 +63,8 @@ export const useWorkspace = create<WorkspaceState>((set, get) => {
       const saved = await api<Application>(path, method, input)
       if (current === epoch) {
         set({ applications: get().applications.map(app => app.id === id ? saved : app) })
-        try { const workspace = await api<Workspace>('/workspace'); if (current === epoch) set(workspace) } catch { /* A failed reminder refresh must not undo a successful save. */ }
+        try { const workspace = await api<Workspace>('/workspace'); if (current === epoch) set(workspace) }
+        catch (error) { if (current === epoch) await failed(error) }
       }
     }, () => { if (before) set({ applications: get().applications.map(app => app.id === id ? before : app) }) })
   }

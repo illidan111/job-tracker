@@ -29,7 +29,8 @@ export default function Applications() {
   const sort = (['newest', 'oldest', 'company', 'salary'].includes(params.get('sort') ?? '') ? params.get('sort') : 'newest') as SortKey
   const filtered = filterApplications(applications, filters, sort)
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
-  const page = Math.min(pageCount, Math.max(1, Number(params.get('page')) || 1))
+  const requestedPage = Number(params.get('page'))
+  const page = Math.min(pageCount, Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1)
   const locations = useMemo(() => [...new Set(applications.map(app => app.location).filter(Boolean))].sort(), [applications])
   const tags = useMemo(() => [...new Set(applications.flatMap(app => app.tags))].sort(), [applications])
   const activeCount = Object.entries(filters).filter(([key, value]) => key !== 'search' && key !== 'status' && value).length

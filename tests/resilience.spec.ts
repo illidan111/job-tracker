@@ -104,3 +104,28 @@ test('malformed imports leave the entire existing workspace unchanged', async ({
     expect((await workspace(page)).applications).toEqual(before)
   }
 })
+
+test('a saved board move survives a failed workspace refresh and retry clears the error', async ({ page }) => {
+  const app = (await workspace(page)).applications.find(item => item.company === 'Vercel')!
+  await page.goto('/kanban')
+  await expect(page.getByLabel('Move Vercel to status')).toBeVisible()
+  await page.route('**/api/workspace', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Workspace refresh unavailable' }) }))
+  await page.getByLabel('Move Vercel to status').selectOption('SCREENING')
+  await expect(page.getByTestId('column-SCREENING').getByText('Vercel')).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('Workspace refresh unavailable')
+  expect((await workspace(page)).applications.find(item => item.id === app.id)?.status).toBe('SCREENING')
+  await page.unroute('**/api/workspace')
+  await page.getByRole('button', { name: 'Refresh workspace' }).click()
+  await expect(page.getByRole('alert')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByTestId('column-SCREENING').getByText('Vercel')).toBeVisible()
+})
+
+test('an unavailable backend during bootstrap offers a working retry', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.abort('failed'))
+  await page.goto('/applications')
+  await expect(page.getByRole('heading', { name: 'Your workspace is taking a moment' })).toBeVisible()
+  await page.unroute('**/api/auth/session')
+  await page.getByRole('button', { name: 'Try again' }).click()
+  await expect(page.getByRole('heading', { name: 'Applications', exact: true })).toBeVisible()
+})

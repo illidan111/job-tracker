@@ -14,7 +14,8 @@ import { CompanyMark } from '../components/CompanyMark'
 import { Button } from '../components/ui/Button'
 
 function KanbanCard({ application }: { application: Application }) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: application.id })
+  const pending = useWorkspace(state => state.pending)
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: application.id, disabled: pending })
   const changeStatus = useWorkspace(state => state.changeStatus)
   const toast = useUI(state => state.toast)
   return <article ref={setNodeRef} className={`kanban-card ${isDragging ? 'is-dragging' : ''}`} data-testid={`card-${application.id}`}>
@@ -23,7 +24,7 @@ function KanbanCard({ application }: { application: Application }) {
     <p className="kanban-location"><MapPin size={13} />{application.location || 'Location not specified'}</p>
     {application.salary !== undefined && <p className="kanban-salary">{formatSalary(application.salary)}<span> / year</span></p>}
     {application.tags.length > 0 && <div className="tags kanban-tags">{application.tags.slice(0, 2).map(tag => <span key={tag}>{tag}</span>)}{application.tags.length > 2 && <span>+{application.tags.length - 2}</span>}</div>}
-    <div className="kanban-card-footer"><span><CalendarDays size={12} />{formatDate(application.dateApplied)}</span><select value={application.status} aria-label={`Move ${application.company} to status`} onChange={async event => { const status = event.target.value as Status; if (await changeStatus(application.id, status)) toast(`${application.company} moved to ${STATUS_META[status].label}`) }}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_META[status].label}</option>)}</select></div>
+    <div className="kanban-card-footer"><span><CalendarDays size={12} />{formatDate(application.dateApplied)}</span><select value={application.status} disabled={pending} aria-label={`Move ${application.company} to status`} onChange={async event => { const status = event.target.value as Status; if (await changeStatus(application.id, status)) toast(`${application.company} moved to ${STATUS_META[status].label}`) }}>{STATUSES.map(status => <option key={status} value={status}>{STATUS_META[status].label}</option>)}</select></div>
   </article>
 }
 

@@ -188,4 +188,46 @@ describe('authenticated database API', () => {
     db.prepare('INSERT INTO rate_limits (key,attempts,expiresAt) VALUES (?,12,?)').run(`email:${hashToken('limited@example.test')}`, Date.now() + 60000)
     expect((await client.request('/auth/login', 'POST', { email: 'limited@example.test', password })).status).toBe(429)
   })
+  it('enforces the interview limit through application edits without corrupting the workspace', async () => {
+    const original = await alice.create()
+    const interviews = Array.from({ length: 100 }, (_, index) => ({ id: `interview-${index}`, scheduledAt: original.createdAt, type: 'Video', interviewer: '', meetingUrl: '', notes: '', outcome: 'Completed', createdAt: original.createdAt, updatedAt: original.createdAt }))
+    expect((await alice.request('/workspace/import', 'POST', { applications: [{ ...original, interviews }] })).status).toBe(200)
+    const before = (await alice.workspace()).applications[0]
+    const response = await alice.request(`/applications/${before.id}`, 'PUT', { ...before, position: 'Should roll back', interviewDate: new Date().toISOString() })
+    expect(response.status).toBe(422)
+    expect(await response.json()).toEqual({ error: 'An application can have up to 100 interviews.' })
+    expect((await alice.workspace()).applications[0]).toEqual(before)
+  })
+  it('does not generate history or revisions when an existing contact is linked again', async () => {
+    const app = await alice.create()
+    const contact = { name: 'Taylor', email: '', company: '', role: '', linkedInUrl: '', notes: '' }
+    const first = await (await alice.request(`/applications/${app.id}/contacts`, 'POST', { version: app.version, contact })).json() as Workspace
+    const current = first.applications[0]
+    const second = await alice.request(`/applications/${app.id}/contacts`, 'POST', { version: current.version, contactId: current.contacts[0].id })
+    expect(second.status).toBe(200)
+    expect((await alice.workspace()).applications[0]).toEqual(current)
+  })
+  it('rejects invalid goals and ignores client supplied owners', async () => {
+    const before = await alice.workspace(), other = await bob.workspace()
+    for (const weeklyGoal of [0, 101, 1.5, '10']) expect((await alice.request('/profile', 'PATCH', { ...before.profile, weeklyGoal })).status).toBe(422)
+    expect((await alice.workspace()).profile).toEqual(before.profile)
+    const response = await alice.request('/applications', 'POST', { ...createDemoApplications()[0], userId: other.user.id })
+    expect(response.status).toBe(201)
+    const app = await response.json() as Application
+    expect((await bob.request(`/applications/${app.id}`)).status).toBe(404)
+    expect((await bob.workspace()).applications).toEqual(other.applications)
+  })
+  it('protects every workspace operation without a session and returns safe errors for missing IDs', async () => {
+    const anonymous = new Client()
+    for (const [path, method, body] of [
+      ['/workspace', 'GET', undefined], ['/applications', 'POST', createDemoApplications()[0]],
+      ['/profile', 'PATCH', {}], ['/workspace/import', 'POST', { applications: [] }],
+      ['/workspace/clear', 'POST', {}], ['/notifications/read-all', 'POST', {}],
+    ] as const) expect((await anonymous.request(path, method, body)).status).toBe(401)
+    for (const id of ['missing', "' OR 1=1 --"]) {
+      const response = await alice.request(`/applications/${encodeURIComponent(id)}`)
+      expect(response.status).toBe(404)
+      expect(await response.text()).not.toMatch(/SELECT|sqlite|stack|password/)
+    }
+  })
 })
